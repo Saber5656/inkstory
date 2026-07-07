@@ -288,7 +288,7 @@ Default motion: `idle_breathe` (humanoid) / `float` (cutout).
 | `Blob` record | `id, mime, data(Blob), size, createdAt` |
 | `Drawing` | `id, createdAt, source('camera'\|'file'), imageBlobId, width, height` |
 | `Character` | `id, name(≤50 chars), createdAt, updatedAt, rigType('humanoid'\|'cutout'), drawingId, textureBlobId, thumbBlobId, rig(CharacterRig\|null), effectPrefs` |
-| `CharacterRig` | `schemaVersion(1), joints{16×[x,y]}, mesh{vertices:number[], triangles:number[]}, weights{boneIndex:number, w:number}[][≤2], textureSize[w,h]` |
+| `CharacterRig` | `schemaVersion(1), joints{16×[x,y]}, mesh{vertices:number[], triangles:number[]}, weights{boneIndex:number, w:number}[][≤2], meshMethod('cdt'\|'grid'), textureSize[w,h]` |
 | `Book` | `id, title(≤100), createdAt, updatedAt, pageOrder(string[])` |
 | `Page` | `id, bookId, characterId?, backgroundId, text(≤500), motionId?, effectIds(string[]≤3), narrationBlobId?, narrationMime?, advance('tap'\|'auto'), createdAt, updatedAt` |
 | `Settings` | `key, value` (locale, reducedMotion override, kidModeHold, …) |
