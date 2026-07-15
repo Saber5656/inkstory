@@ -22,12 +22,15 @@ constraints. Consumes issue 10's manifest — including its `status:"unavailable
 
 ## Detailed Requirements
 
-1. `modelLoader`: read `/models/manifest.json` (zod-validated, issue 04 pattern);
-   if `status:"unavailable"` → resolve to `{available:false}` without network noise.
-   Otherwise fetch `/models/<file>` with streamed progress callbacks, store response in
-   Cache Storage bucket `models-v1`, and on every load verify sha256 via
-   `crypto.subtle.digest` against the manifest **before** session creation; mismatch →
-   purge cache entry, one retry, then `{available:false, reason:'integrity'}`.
+1. `modelLoader`: read the app-bundled, review-anchored model manifest generated from
+   issue 10's output (zod-validated, issue 04 pattern). The expected hash must ship with
+   the reviewed app build, not be fetched from the same mutable `/models` area as the
+   ONNX asset. If `status:"unavailable"` → resolve to `{available:false}` without
+   network noise. Otherwise fetch `/models/<file>` with streamed progress callbacks,
+   store response in Cache Storage bucket `models-v1`, and on every load verify sha256
+   via `crypto.subtle.digest` against the app-bundled manifest **before** session
+   creation; mismatch → purge cache entry, one retry, then
+   `{available:false, reason:'integrity'}`.
 2. EP selection: try `webgpu`, fall back to `wasm`; set
    `numThreads = crossOriginIsolated ? min(4, hardwareConcurrency-1) : 1`
    (docs/research/02). Record chosen EP + timings in `probe.ts` for the diagnostics
@@ -53,8 +56,10 @@ constraints. Consumes issue 10's manifest — including its `status:"unavailable
 - Tampering with the cached model bytes (test hook) triggers purge+retry then
   unavailable-with-integrity-reason; a passing hash never re-downloads on second load
   (network mocked).
-- With manifest `status:"unavailable"`, no model fetch happens and the wizard's joints
-  step still functions (template pose — verified in issue 12's tests).
+- With the app-bundled manifest `status:"unavailable"`, no model fetch happens and the
+  wizard's joints step still functions (template pose — verified in issue 12's tests).
+- A test or build-time assertion proves the trusted hash manifest is imported from the
+  app bundle/reviewed source, not fetched from `/models` at runtime.
 - EP/threads selection logic unit-tested via injected fake capabilities.
 
 ## Validation

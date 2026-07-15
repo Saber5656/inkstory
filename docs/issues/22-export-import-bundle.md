@@ -17,6 +17,7 @@ crafted bundle shared between strangers). Every §10.3 B3 control lands here.
 ## Scope
 
 `src/exchange/`: `export.ts`, `import.ts`, `bundleSchema.ts` (path grammar + manifest),
+portable import/export DTO schemas and blob/Drawing reconstruction helpers,
 settings-screen UI (export selector, import flow with preview + report), malicious
 fixture corpus under `tests/fixtures/bundles/`.
 
@@ -36,12 +37,16 @@ fixture corpus under `tests/fixtures/bundles/`.
       aborts past declared size (ratio-bomb guard);
    d. `manifest.json` via `zod.strict()`; `formatVersion > 1` → localized "update
       inkstory" refusal;
-   e. JSON docs via issue-04 schemas (strict); id cross-references verified (every
-      referenced file present, no dangling ids);
+   e. JSON docs via strict portable bundle DTO schemas, not raw storage schemas. DTOs
+      intentionally omit storage-only blob ids and Drawing rows; import reconstructs
+      fresh Drawing/blob records for texture, thumbnail, and narration files, then maps
+      them into issue-04 storage schemas before commit. Cross-references are verified
+      after reconstruction (every referenced file present, no dangling ids);
    f. every image **decoded then re-encoded** via canvas (dims ≤4096², else reject) —
       output replaces input bytes; audio entries stored as opaque blobs ≤20 MiB with
-      mime from book.json (validated against an allowlist:
-      `audio/mp4|audio/webm|audio/ogg|audio/mpeg`);
+      mime from book.json. Validate audio MIME by parsing the media type and allowing the
+      safe containers `audio/mp4`, `audio/webm`, `audio/ogg`, `audio/mpeg` plus recorder
+      parameters such as `;codecs=opus`; reject unknown media types or unsafe parameters;
    g. id collision policy: imported entities get **fresh UUIDs** (remapped
       consistently across the bundle) — imports never overwrite existing data;
    h. commit: single Dexie transaction; any failure → nothing written + per-entry
@@ -59,6 +64,8 @@ fixture corpus under `tests/fixtures/bundles/`.
 ## Acceptance Criteria
 
 - Round-trip test green (fake-indexeddb): golden character + 3-page narrated book.
+- DTO reconstruction test green: exported bundle JSON without storage blob ids imports
+  into schema-valid Drawing, Blob, Character, Book, and Page rows with fresh UUIDs.
 - Every malicious fixture rejected with its specific reason; DB row-count unchanged
   (asserted before/after).
 - Import of a 200 MB synthetic bundle stays responsive (progress events; main thread

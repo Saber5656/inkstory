@@ -32,16 +32,18 @@ later steps.
    detection AND a runtime probe; any failure silently falls back to file input
    (no error dialog). Streams stopped (`track.stop()`) on close/step exit (DESIGN §10.3
    B1).
-4. `reencode(file: Blob): Promise<{bitmap: ImageBitmap, width, height}>`:
+4. `reencode(file: Blob): Promise<{bitmap: ImageBitmap, width, height, png: Blob}>`:
    decode via `createImageBitmap` with `imageOrientation: 'from-image'` (EXIF applied),
    downscale longest edge to ≤2048 px (bicubic via canvas draw), re-encode to PNG **in
-   memory**; the original File object is never stored or referenced afterwards.
+   memory**, and return the sanitized PNG bytes as `png`; the original File object is
+   never stored or referenced afterwards.
    Reject: files >40 MiB, decoded dimensions >8192 px, non-image MIME — each with a
    localized, kid-polite error message key.
-5. The re-encoded image is wizard draft state only (memory); persistence happens at
-   `saved` (issue 13 wires final save; this issue saves Drawing + blob when the wizard
+5. The re-encoded image is wizard draft state only (memory) as `{bitmap, png}`; persistence
+   happens at `saved` by storing the returned sanitized `png` blob, never the original
+   file (issue 13 wires final save; this issue saves Drawing + blob when the wizard
    reaches `saved` in the temporary flow used for testing).
-6. Unit tests for `reencode`: fixture JPEG with EXIF orientation 6 + GPS → output PNG
+6. Unit tests for `reencode`: fixture JPEG with EXIF orientation 6 + GPS → output `png`
    has correct pixel orientation (probe corner pixels) and zero metadata (parse output
    bytes: no `eXIf` chunk, no EXIF marker).
 

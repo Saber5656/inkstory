@@ -28,10 +28,11 @@ included — text-only sample pages), first-run seeding logic, onboarding overla
    through the real pipeline (mask, joints, rig) with the resulting rig JSON checked in
    (regeneration script documented). Rig must be schema-valid and within issue-13
    bounds.
-2. Sample book (3 pages, ja + en variants selected by locale): p1 meadow + wave +
-   greeting text; p2 sky + jump + 「じゃんぷ！」-style text (suggestion-consistent with
-   19's engine); p3 night + sit_down + goodnight text; all `advance:'auto'`, no
-   narration (recording is the family's first activity — onboarding points at it).
+2. Sample book (3 pages, ja + en seed variants selected by locale at seed/restore time):
+   p1 meadow + wave + greeting text; p2 sky + jump + 「じゃんぷ！」-style text
+   (suggestion-consistent with 19's engine); p3 night + sit_down + goodnight text; all
+   `advance:'auto'`, no narration (recording is the family's first activity —
+   onboarding points at it).
 3. First-run seeding: on first launch (settings flag absent) copy samples into
    IndexedDB via the standard repos (fresh UUIDs), set flag; deletion by the user is
    respected (no re-seed); settings offers "サンプルをもどす" (restore) which re-seeds
@@ -42,7 +43,10 @@ included — text-only sample pages), first-run seeding logic, onboarding overla
    skippable instantly.
 5. Samples excluded from export by default (checkbox states "include samples" off) —
    avoids sample-noise in family backups (22's selector gains the flag).
-6. Everything localized; sample text lives in locale resources, not hardcoded.
+6. Everything localized; seed text comes from locale resources, not hardcoded. After a
+   sample book is copied into IndexedDB it is normal user-editable `Page.text`, so later
+   app locale changes do not mutate existing sample pages. Restore uses the current
+   locale and creates fresh localized copies.
 
 ## Acceptance Criteria
 
@@ -51,8 +55,9 @@ included — text-only sample pages), first-run seeding logic, onboarding overla
   duplicate samples.
 - Delete samples → relaunch: not re-seeded; settings restore brings them back.
 - Sample rig passes issue-04 schema + issue-13 structural checks in CI.
-- Locale switch swaps sample book text (ja/en fixtures both seeded per active locale
-  at seed time; restore uses current locale).
+- Locale behavior is implementable: first-run seeding uses the active locale, changing
+  app locale later does not rewrite existing user/sample `Page.text`, and restore uses
+  the current locale for newly seeded copies.
 
 ## Validation
 

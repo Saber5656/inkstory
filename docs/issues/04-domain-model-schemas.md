@@ -26,7 +26,9 @@ No UI, no storage.
    §7.3. All object schemas use `.strict()`.
 2. Bounds (reject outside): name ≤50 chars, title ≤100, page text ≤500, `effectIds` ≤3,
    rig joints = exactly the 16 named joints, mesh vertices ≤ 3000×2 numbers, triangles
-   ≤ 6000×3 indices, weights ≤2 influences/vertex with `w ∈ [0,1]`, motion
+   ≤ 6000×3 integer indices and every triangle index must be within `mesh.vertices`,
+   weights ≤2 influences/vertex with every `boneIndex` within the skeleton bone table
+   and `w ∈ [0,1]`, motion
    `frameCount ∈ [2, 3600]`, `fps ∈ {24,30,60}`, angles finite numbers in
    `[-100000, 100000]` (post-parse normalization to [-180,180] is the consumer's job),
    `rootTranslation.length === frameCount`, every `frames[bone].length === frameCount`.
@@ -47,6 +49,8 @@ No UI, no storage.
   (extra key, over-limit string, NaN, wrong enum, missing field) — all behave as
   specified.
 - A fixture rig with 15 or 17 joints is rejected; exactly-16 with correct names passes.
+- A fixture rig with out-of-range triangle indices, non-integer triangle indices, or
+  weight `boneIndex` values outside the skeleton bone table is rejected.
 - A motion fixture where one bone track length ≠ frameCount is rejected
   (cross-field refinement).
 - `types.ts` exports compile-time types inferred from schemas only (no hand-written

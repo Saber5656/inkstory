@@ -26,9 +26,12 @@ unit tests. UI integration happens in issue 09.
 2. Steps, in order (port faithfully from upstream `examples/image_to_annotations.py`
    (MIT), keeping a provenance comment with the upstream path/commit):
    a. grayscale = min(R,G,B) per pixel;
-   b. adaptive Gaussian threshold (binary inverse) — implement integral-image-based
-      local Gaussian-weighted mean with the upstream block size and C constant; expose
-      C offset scaled by `sensitivity ∈ [0,1]` (default mid) for issue 09's slider;
+   b. adaptive Gaussian threshold (binary inverse) — implement the Gaussian-weighted
+      local mean with separable/sliding kernels using the upstream block size and C
+      constant; expose C offset scaled by `sensitivity ∈ [0,1]` (default mid) for issue
+      09's slider. Do not use an integral-image box-sum approximation for this Gaussian
+      path; if profiling proves Gaussian cannot meet the budget, file a follow-up design
+      decision before intentionally switching to adaptive mean thresholding;
    c. morphological close ×2 then dilate ×2 with 3×3 rect kernel;
    d. flood fill background from 10 evenly spaced seeds per edge (BFS on the binary
       image); anything reached is background;

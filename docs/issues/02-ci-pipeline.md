@@ -26,7 +26,9 @@ them once so later issues only add jobs/steps.
      `pnpm typecheck`, `pnpm test` (with coverage summary output).
    - `build`: `pnpm build`; upload `dist/` as artifact; print gzip size of the largest
      entry JS chunks (budget wiring for DESIGN §9.4 comes in issue 23).
-   - `audit`: `pnpm audit --prod --audit-level high` — failing on high/critical.
+   - `audit`: `pnpm audit --audit-level high` — failing on high/critical across
+     production and development dependencies. CI/build-time tools are part of the
+     supply-chain boundary because they execute on PRs and releases.
 2. **All third-party actions pinned by full commit SHA** (not tags) with a version
    comment (DESIGN §10.3).
 3. `permissions:` block at workflow level set to `contents: read` (least privilege).
@@ -39,8 +41,8 @@ them once so later issues only add jobs/steps.
 ## Acceptance Criteria
 
 - A PR touching only a README line runs all three jobs and passes in <5 minutes.
-- Introducing a dependency with a known high-severity advisory (test locally with
-  `pnpm audit` simulation) fails the `audit` job.
+- Introducing a production or development dependency with a known high-severity advisory
+  (test locally with `pnpm audit` simulation) fails the `audit` job.
 - `grep -R "uses:" .github/workflows | grep -v '@[0-9a-f]\{40\}'` returns nothing.
 - Dependabot config validates (GitHub UI shows it active).
 

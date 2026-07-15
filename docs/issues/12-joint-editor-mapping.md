@@ -45,22 +45,26 @@ define behavior; §6.1 fixes the skeleton.
 5. Non-blocking validation warnings (DESIGN §5.5): pin outside mask; left/right limb
    pins crossing over the torso line; warnings shown as pulsing outline + list, never
    preventing "next".
-6. `preview` step: render the rigged character playing the bundled `wave` clip via the
-   animation engine when issue 15 is available; until then, a static skeleton-overlay
-   confirmation screen behind the same interface (feature-flagged seam documented) —
-   the wizard `saved` step persists Character(+Drawing, texture, thumb, rig=null for
-   cutout / joints for humanoid) through issue-05 repos. Thumbnail: 256 px cutout PNG.
+6. `preview` step: render a draft skeleton overlay using the current joint annotations.
+   When issue 15 is available and a full `CharacterRig` exists, the same interface can
+   render the bundled `wave` clip; until issue 13 builds the full rig, this issue keeps
+   humanoid joints in wizard draft state only. The wizard `saved` step must not persist a
+   partial joints object into `Character.rig`; it either stays draft-only for humanoids
+   until issue 13, or persists a schema-valid cutout Character with `rig:null` for the
+   cutout path. Thumbnail: 256 px cutout PNG.
 7. All strings i18n; step fully touch-operable.
 
 ## Acceptance Criteria
 
 - Mapping fixtures reproduce upstream-derived expected joints (±1 px).
 - With pose unavailable (mock), the step opens with the exact template table above.
-- Dragging each pin updates the draft; save persists a schema-valid Character readable
+- Dragging each pin updates the draft; no test persists partial humanoid joints as
+  `Character.rig`. Any saved Character written by this issue is schema-valid and readable
   back via repos (integration test with fake-indexeddb).
 - Warnings trigger on planted fixture cases and never block progression.
-- Wizard completes capture→saved for humanoid AND cutout paths (cutout skips joints)
-  in a component-level integration test.
+- Wizard completes capture→preview for the humanoid draft path without persisting partial
+  joints, and capture→saved for the cutout path (cutout skips joints) in a component-level
+  integration test.
 
 ## Validation
 

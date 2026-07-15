@@ -62,7 +62,8 @@ CI (axe + lint); manual screen-reader + keyboard passes documented in
 
 ## Dependencies
 
-16, 19, 21 (audits the shipped surfaces; runs late in wave 4).
+16, 19, 21, 22 (audits the shipped surfaces, including keyboard-only import/export
+flows; runs late in wave 4).
 
 ## Non-goals
 

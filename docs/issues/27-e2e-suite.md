@@ -40,7 +40,12 @@ workflow), `pnpm test:e2e` and `pnpm test:privacy` scripts.
    test hook page).
 5. **Privacy audit** (`test:privacy`): route interception on `**/*` across golden
    paths A+B+import — any request whose origin ≠ the test server origin fails the
-   run (allowlist: none). Also asserts no request occurs after initial load+model
+   run (allowlist: none). Because issue 23 registers a service worker, include coverage
+   that cannot be bypassed by service-worker-handled or service-worker-originated
+   requests: run a `serviceWorkers: 'block'` audit variant and add explicit
+   service-worker/CDP network monitoring, or an equivalent proxy-level capture that can
+   observe requests to all origins. A same-origin static-server log alone is not
+   sufficient for this check. Also asserts no request occurs after initial load+model
    fetch when replaying path A offline (`context.setOffline`).
 6. Perf smoke (chromium CI): stage with 3000-vertex fixture ≥55 fps rolling average
    (probe from 15), wizard step transitions ≤3 s on the runner, initial-JS gzip
@@ -55,8 +60,8 @@ workflow), `pnpm test:e2e` and `pnpm test:privacy` scripts.
 ## Acceptance Criteria
 
 - Full suite green on chromium; webkit green outside the declared fixme list.
-- Privacy audit fails when a cross-origin `<img>` is planted in a test build
-  (self-test of the harness) and passes clean.
+- Privacy audit fails when a cross-origin `<img>` or service-worker fetch is planted in a
+  test build (self-test of the harness) and passes clean.
 - Malicious corpus: 10/10 rejected via UI with zero DB writes.
 - CI runtime for the whole e2e job ≤12 min (shard if needed).
 
