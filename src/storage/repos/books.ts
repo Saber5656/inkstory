@@ -1,7 +1,7 @@
 import { BookSchema, PageSchema } from '../../domain/schemas';
 import type { Book } from '../../domain/types';
 import { db } from '../db';
-import { StorageCorruptionError } from '../errors';
+import { InvalidPageOrderError, StorageCorruptionError } from '../errors';
 import { gc } from '../gc';
 import { readValidated, writeValidated } from './helpers';
 import { withQuotaHandling } from '../quota';
@@ -30,9 +30,18 @@ export const booksRepo = {
   async reorderPages(bookId: string, pageOrder: string[]): Promise<Book> {
     const parsedOrder = BookSchema.shape.pageOrder.parse(pageOrder);
     return withQuotaHandling(() =>
-      db.transaction('rw', db.books, async () => {
+      db.transaction('rw', [db.books, db.pages], async () => {
         const book = await readValidated(db.books, BookSchema, bookId, 'book');
         if (!book) throw new Error(`Book not found (${bookId})`);
+        const pages = await db.pages.where('bookId').equals(bookId).toArray();
+        const pageIds = pages.map((page) => page.id);
+        if (
+          new Set(parsedOrder).size !== parsedOrder.length ||
+          parsedOrder.length !== pageIds.length ||
+          parsedOrder.some((pageId) => !pageIds.includes(pageId))
+        ) {
+          throw new InvalidPageOrderError(bookId);
+        }
         const updated = BookSchema.parse({
           ...book,
           pageOrder: parsedOrder,

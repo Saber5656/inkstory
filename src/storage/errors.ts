@@ -25,3 +25,15 @@ export class CharacterInUseError extends Error {
     this.bookIds = books.map((book) => book.id);
   }
 }
+
+export class InvalidPageOrderError extends Error {
+  readonly bookId: string;
+  constructor(
+    bookId: string,
+    message = 'Page order must contain each page exactly once',
+  ) {
+    super(message);
+    this.name = 'InvalidPageOrderError';
+    this.bookId = bookId;
+  }
+}

@@ -77,6 +77,46 @@ describe('storage repositories', () => {
     });
   });
 
+  it('adds and deletes pages atomically with the book pageOrder', async () => {
+    const book = {
+      id: id(5),
+      title: 'Pages',
+      createdAt: 1,
+      updatedAt: 1,
+      pageOrder: [] as string[],
+    };
+    await booksRepo.put(book);
+    const page = {
+      id: id(6),
+      bookId: book.id,
+      backgroundId: 'plain_cream',
+      text: '',
+      effectIds: [] as string[],
+      advance: 'tap' as const,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await pagesRepo.addToBook(page);
+    expect((await booksRepo.get(book.id))?.pageOrder).toEqual([page.id]);
+    await pagesRepo.delete(page.id);
+    expect((await booksRepo.get(book.id))?.pageOrder).toEqual([]);
+  });
+
+  it('rejects duplicate or foreign pages during atomic reorder', async () => {
+    const book = {
+      id: id(7),
+      title: 'Order',
+      createdAt: 1,
+      updatedAt: 1,
+      pageOrder: [id(8)],
+    };
+    await booksRepo.put(book);
+    await expect(
+      booksRepo.reorderPages(book.id, [id(8), id(8)]),
+    ).rejects.toThrow();
+    await expect(booksRepo.reorderPages(book.id, [id(9)])).rejects.toThrow();
+  });
+
   it('cascades a book and its page narration, then sweeps orphan blobs', async () => {
     const narrationId = await blobsRepo.put(
       'audio/ogg',

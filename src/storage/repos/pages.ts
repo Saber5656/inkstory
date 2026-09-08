@@ -29,6 +29,34 @@ export const pagesRepo = {
         (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
     );
   },
+  async addToBook(page: Page): Promise<Page> {
+    const parsed = PageSchema.parse(page);
+    return withQuotaHandling(() =>
+      db.transaction('rw', [db.pages, db.books], async () => {
+        const book = await readValidated(
+          db.books,
+          BookSchema,
+          parsed.bookId,
+          'book',
+        );
+        if (!book) throw new Error(`Book not found (${parsed.bookId})`);
+        if (
+          book.pageOrder.includes(parsed.id) ||
+          (await db.pages.get(parsed.id)) !== undefined
+        )
+          throw new Error(`Page already exists (${parsed.id})`);
+        await db.pages.put(parsed);
+        await db.books.put(
+          BookSchema.parse({
+            ...book,
+            pageOrder: [...book.pageOrder, parsed.id],
+            updatedAt: Date.now(),
+          }),
+        );
+        return parsed;
+      }),
+    );
+  },
   list: async (): Promise<Page[]> =>
     Promise.all(
       (await db.pages.orderBy('updatedAt').toArray()).map(
@@ -44,8 +72,24 @@ export const pagesRepo = {
         'rw',
         [db.pages, db.blobs, db.books, db.drawings, db.characters, db.settings],
         async () => {
-          await readValidated(db.pages, PageSchema, id, 'page');
+          const page = await readValidated(db.pages, PageSchema, id, 'page');
+          if (!page) return;
           await db.pages.delete(id);
+          const book = await readValidated(
+            db.books,
+            BookSchema,
+            page.bookId,
+            'book',
+          );
+          if (book) {
+            await db.books.put(
+              BookSchema.parse({
+                ...book,
+                pageOrder: book.pageOrder.filter((pageId) => pageId !== id),
+                updatedAt: Date.now(),
+              }),
+            );
+          }
           await gc.sweepInTransaction();
         },
       ),
