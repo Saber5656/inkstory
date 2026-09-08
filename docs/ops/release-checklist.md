@@ -1,13 +1,13 @@
 # Release checklist
 
-This checklist is the release gate for the static web MVP. A release is a reviewed checklist plus a version tag; merge alone is not a release. The current document is a dry-run template: no live deployment, CI run, or manual device matrix is verified in this checkout.
+This checklist is the release gate for the static web MVP. A release is a reviewed checklist plus a version tag; merge alone is not a release. Implementation checks below record local verification; current hosted checks are linked in [PR #31](https://github.com/Saber5656/inkstory/pull/31). No live deployment or physical-device matrix is claimed.
 
 ## 1. Freeze and review
 
-- [ ] Confirm the version in `package.json`, Settings, changelog, and release notes is the same SemVer value.
-- [ ] Confirm only intended files are staged; inspect the diff for secrets, personal paths, private sample media, and unexpected network endpoints.
-- [ ] Review [privacy.md](../privacy.md), [SECURITY.md](../../SECURITY.md), and [self-hosting.md](../self-hosting.md) against the actual source and host plan.
-- [ ] Add verified screenshots only after the sample flow manual run. Mark missing screenshots as pending.
+- [x] Confirm the version in `package.json`, Settings, changelog, and release notes is the same SemVer value.
+- [x] Confirm only intended files are staged; inspect the diff for secrets, personal paths, private sample media, and unexpected network endpoints.
+- [x] Review [privacy.md](../privacy.md), [SECURITY.md](../../SECURITY.md), and [self-hosting.md](../self-hosting.md) against the actual source and host plan.
+- [x] Add verified desktop Chromium sample screenshots with the capture environment stated; physical-device screenshots remain pending.
 - [ ] Check dependency licenses and [motion credits](../../public/motions/CREDITS.md).
 
 ## 2. Machine gates
@@ -29,14 +29,14 @@ Record command output, commit SHA, OS, Node/pnpm versions, and browser versions 
 
 Required machine evidence:
 
-- [ ] Unit tests pass, including domain, capture, vision, pose fallback, rig, storage, exchange, and audio limits.
-- [ ] Typecheck and lint pass with zero warnings.
-- [ ] Production build succeeds from the frozen lockfile.
-- [ ] Built privacy scan and CSP checks pass.
-- [ ] Chromium and WebKit Playwright golden paths pass.
-- [ ] Privacy-tagged network audit passes with no cross-origin app calls.
-- [ ] PWA manifest/service-worker assets are present and model cache limits are understood.
-- [ ] Any model manifest/provenance/hash check is recorded; model absence must still pass the manual-joint path.
+- [x] Unit tests pass, including domain, capture, vision, pose fallback, rig, storage, exchange, and audio limits.
+- [x] Typecheck and lint pass with zero warnings.
+- [x] Production build succeeds from the frozen lockfile.
+- [x] Built privacy scan and CSP checks pass.
+- [x] Chromium and WebKit Playwright golden paths pass.
+- [x] Privacy-tagged network audit passes with no cross-origin app calls.
+- [x] PWA manifest/service-worker assets are present and model cache limits are understood.
+- [x] Any model manifest/provenance/hash check is recorded; model absence must still pass the manual-joint path.
 
 ## 3. Manual acceptance matrix
 
@@ -64,4 +64,6 @@ Also verify: portrait layout, keyboard/screen-reader basics, denied permissions,
 
 ## Current status
 
-As of 2026-09-08, this repository has no recorded production URL, test-tag deployment, CI result, live-header inspection, or iOS/Android manual smoke run. Those are release prerequisites and remain incomplete. This checklist intentionally does not claim that `pnpm` commands or a live path passed merely because the scripts exist.
+As of 2026-09-08, production builds and local browser validation pass. Node 20 integrity tests were reproduced and repaired in the real Node 20 runtime. The hosted build/audit jobs pass; the final hosted result is linked in PR #31. Linux WebKit lacks MediaRecorder, so its explicit recording gap is accompanied by a tested no-recording UI; macOS WebKit passes synthetic recording. Hardware rendering is measured on Apple M4 Metal, while software-only CI explicitly skips the hardware budget.
+
+No production URL, test-tag deployment, live-header inspection, release tag, merge, or iOS/Android manual smoke run is recorded. These release conditions remain incomplete.
