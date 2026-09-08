@@ -1,0 +1,36 @@
+# ADR-006: Keep the MVP motion seeds original until BVH terms are auditable
+
+Date: 2026-09-08
+Status: Accepted
+
+## Context
+
+Issue 14 describes an offline BVH converter and asks for a reproducible ten-clip
+library. The archived AnimatedDrawings repository is MIT licensed, but its README's
+CMU and Rokoko references do not by themselves establish redistribution terms for
+each source recording. Shipping a converted recording without a per-file conclusion
+would make the MVP provenance claim unsafe.
+
+## Decision
+
+The ten checked-in MVP clips remain original procedural seed clips. They are regenerated
+by `tools/motion-pipeline/convert-all.mjs`, which validates the fixed skeleton, angle
+clamp, loop seam, stable bytes, and catalog hashes. The BVH converter remains available
+for contributors and tests, but no upstream BVH is vendored or presented as the source
+of a bundled clip.
+
+## Consequences
+
+- A fresh checkout can reproduce the current ten clip files and `index.json` without a
+  package script or network access.
+- The current bundle has a transparent license conclusion and does not inherit unknown
+  terms from CMU or Rokoko recordings.
+- Full Issue 14 acceptance for “from vendored BVH inputs” remains pending a source
+  recording audit and explicit vendoring decision.
+
+## References
+
+- `docs/issues/14-motion-pipeline-library.md`
+- `public/motions/CREDITS.md`
+- `https://github.com/facebookresearch/AnimatedDrawings/blob/main/LICENSE`
+- `https://github.com/facebookresearch/AnimatedDrawings`

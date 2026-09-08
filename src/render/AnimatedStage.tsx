@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import 'pixi.js/unsafe-eval';
 import {
   Application,
   Assets,
@@ -15,6 +16,10 @@ import {
   resolveReducedMotion,
   subscribeReducedMotion,
 } from './reducedMotion';
+import {
+  installRendererFrameProbe,
+  registerRendererForProbe,
+} from './rendererProbe';
 import './AnimatedStage.css';
 
 export type AnimatedStageProps = {
@@ -120,6 +125,7 @@ export function AnimatedStage({
     if (!host) return undefined;
     let disposed = false;
     let initialized = false;
+    let unregisterRenderer: (() => void) | undefined;
     const app = new Application();
     const actor = new CharacterActor({
       ...character,
@@ -145,6 +151,11 @@ export function AnimatedStage({
           return;
         }
         initialized = true;
+        installRendererFrameProbe();
+        unregisterRenderer =
+          import.meta.env.VITE_PERF_TEST === '1'
+            ? registerRendererForProbe(app.renderer)
+            : undefined;
         const backdrop = new Container();
         backdropRef.current = backdrop;
         host.appendChild(app.canvas);
@@ -188,6 +199,10 @@ export function AnimatedStage({
         delete (window as Window & { __inkstoryActor?: CharacterActor })
           .__inkstoryActor;
       backdropRef.current = null;
+      if (import.meta.env.VITE_PERF_TEST === '1') {
+        unregisterRenderer?.();
+        unregisterRenderer = undefined;
+      }
       const observer = (
         app as Application & { __inkstoryResizeObserver?: ResizeObserver }
       ).__inkstoryResizeObserver;
