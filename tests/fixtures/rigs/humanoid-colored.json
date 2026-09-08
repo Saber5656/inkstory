@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "meshMethod": "cdt",
+  "textureSize": [
+    160,
+    192
+  ],
+  "vertexCount": 720,
+  "triangleCount": 741,
+  "vertexSamples": [
+    {
+      "index": 0,
+      "value": -0.3584905660377359
+    },
+    {
+      "index": 720,
+      "value": -0.3647798742138365
+    },
+    {
+      "index": 1438,
+      "value": 0.25627192348861566
+    }
+  ],
+  "weightSamples": [
+    {
+      "index": 0,
+      "value": [
+        {
+          "boneIndex": 5,
+          "w": 0.9916755042103657
+        },
+        {
+          "boneIndex": 4,
+          "w": 0.008324495789634416
+        }
+      ]
+    },
+    {
+      "index": 360,
+      "value": [
+        {
+          "boneIndex": 5,
+          "w": 0.6669039061705242
+        },
+        {
+          "boneIndex": 10,
+          "w": 0.33309609382947586
+        }
+      ]
+    },
+    {
+      "index": 719,
+      "value": [
+        {
+          "boneIndex": 14,
+          "w": 0.8499266714016059
+        },
+        {
+          "boneIndex": 13,
+          "w": 0.15007332859839417
+        }
+      ]
+    }
+  ]
+}
