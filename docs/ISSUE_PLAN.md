@@ -179,3 +179,7 @@ only in prose.
 | cdt2d robustness on pathological contours | 13 grid-mesh fallback; may need epsilon tuning |
 | Playwright-webkit parity for MediaRecorder/camera emulation | 27 — some paths may be chromium-only in CI, moved to the manual matrix |
 | Segmentation params on phone photos of pencil drawings | 08 fixtures; params may need exposure as "sensitivity" control in 09 |
+
+## 9. Draft v2 mobile implementation tasks
+
+GitHub #30 is a design study. The proposed tasks M1–M15 and their dependencies are listed in [DESIGN-mobile.md](DESIGN-mobile.md#draft-v2-issue-breakdown-for-issue_plan-wave-6). They are draft planning items, not newly published GitHub issues. [ADR-007](decisions/ADR-007-mobile-approach.md) remains Proposed until product-owner sign-off. No native implementation, signing, store submission, or SDK compatibility is implied.

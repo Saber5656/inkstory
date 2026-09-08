@@ -4,7 +4,7 @@ This inventory maps every mandatory threat row in [DESIGN §10.3](DESIGN.md#103-
 
 | Threat | Boundary | Implementation | Automated evidence | Current state and remaining condition |
 |---|---|---|---|---|
-| EXIF GPS / hidden metadata persisted or exported | B2 | `src/capture/reencode.ts`; exchange import uses the same re-encode path | `src/exchange/exchange.test.ts`, `tests/capture/canvas.spec.ts` | Unit/browser coverage exists. WebKit re-encode still has a known EXIF residual finding; domain owner is correcting it and must rerun the WebKit capture matrix. |
+| EXIF GPS / hidden metadata persisted or exported | B2 | `src/capture/reencode.ts`; exchange import uses the same re-encode path | `src/exchange/exchange.test.ts`, `tests/capture/canvas.spec.ts` | Unit/browser coverage exists. PNG EXIF stripping now passes in Chromium and WebKit. The browser encoder preserves EXIF in WebKit unless the PNG metadata chunks are explicitly removed. |
 | Malicious image, huge dimensions, decoder abuse | B2/B3 | `src/capture/reencode.ts`, `src/capture/index.ts`, `src/exchange/bundleSchema.ts` | capture canvas tests; exchange validation tests | Limits and rejection paths are implemented. 40 MiB, 8192 px, and corrupt-image checks need the release browser matrix result recorded. |
 | Zip bomb / resource exhaustion | B3 | `src/exchange/import.ts`, `src/exchange/bundleSchema.ts` size, entry, ratio, and worker limits | `src/exchange/exchange.test.ts`, `tests/e2e/exchange.spec.ts`, `tests/fixtures/bundles/corpus.json` | Corpus and DB non-write checks are present. Full CI execution and the 200 MiB responsiveness measurement remain release gates. |
 | Path traversal / smuggled bundle entries | B3 | strict entry grammar and unknown-entry rejection in `src/exchange/import.ts` | exchange corpus unit and browser tests | Implemented and tested against the checked-in malicious corpus; a CI result is still pending. |
@@ -19,6 +19,6 @@ This inventory maps every mandatory threat row in [DESIGN §10.3](DESIGN.md#103-
 
 ## CSP and release evidence
 
-The intended policy is documented in [DESIGN §10.4](DESIGN.md#104-content-security-policy-target-minimized-in-issue-24) and emitted through the current Vite/header paths. The security Playwright suite checks `frame-ancestors`, inline script suppression, cross-origin fetch suppression, a planted cross-origin image, and the initial JavaScript budget. The strict-CSP Pixi initialization path is currently being corrected by the motion owner; this inventory must be updated after that fix and a Chromium/WebKit rerun.
+The intended policy is documented in [DESIGN §10.4](DESIGN.md#104-content-security-policy-target-minimized-in-issue-24) and emitted through the current Vite/header paths. The security Playwright suite checks `frame-ancestors`, inline script suppression, cross-origin fetch suppression, a planted cross-origin image, and the initial JavaScript budget. Pixi uses its static CSP-compatible polyfills; `unsafe-eval` remains prohibited. Browser navigation and renderer visibility are tested separately.
 
 The checkout has no verified production URL, Pages deploy, or hosted CI run. Those are explicit release conditions, so this document does not mark the inventory green solely because the source and tests exist.
