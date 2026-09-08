@@ -127,6 +127,8 @@ export function AnimatedStage({
   useEffect(() => subscribeReducedMotion(setSystemReducedMotion), []);
   useEffect(() => {
     ariaLabelRef.current = ariaLabel;
+    const fallback = hostRef.current?.querySelector('.animated-stage-fallback');
+    fallback?.setAttribute('alt', ariaLabel);
   }, [ariaLabel]);
 
   useEffect(() => {
@@ -155,10 +157,7 @@ export function AnimatedStage({
             asset(character.textureUrl),
           );
           if (!disposed && actorRef.current === actor && !actor.destroyed)
-            actor.setTexture(
-              texture,
-              ownsTexture,
-            );
+            actor.setTexture(texture, ownsTexture);
           else if (ownsTexture && !texture.destroyed) texture.destroy(true);
         },
         () => undefined,
@@ -167,7 +166,7 @@ export function AnimatedStage({
       if (!disposed) actor.tick(ticker.deltaMS);
     };
     const destroyApp = (): void => {
-      if (!appDestroyed) {
+      if (!appDestroyed && app.renderer) {
         appDestroyed = true;
         unregisterRenderer?.();
         unregisterRenderer = undefined;
@@ -209,9 +208,7 @@ export function AnimatedStage({
           destroyApp();
           return;
         }
-        host
-          .querySelector('.animated-stage-fallback')
-          ?.remove();
+        host.querySelector('.animated-stage-fallback')?.remove();
         installRendererFrameProbe();
         unregisterRenderer =
           import.meta.env.VITE_PERF_TEST === '1'
@@ -293,8 +290,7 @@ export function AnimatedStage({
       );
     }
     return () => {
-      if (motionRequestRef.current === request)
-        motionRequestRef.current += 1;
+      if (motionRequestRef.current === request) motionRequestRef.current += 1;
     };
   }, [character, effectIds, motionId, playing, speed, effectiveReducedMotion]);
 

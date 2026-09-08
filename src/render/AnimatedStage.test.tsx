@@ -80,9 +80,15 @@ const state = vi.hoisted(() => {
   }
 
   class MockGraphics extends MockContainer {
-    rect(): this { return this; }
-    circle(): this { return this; }
-    fill(): this { return this; }
+    rect(): this {
+      return this;
+    }
+    circle(): this {
+      return this;
+    }
+    fill(): this {
+      return this;
+    }
   }
 
   class MockActor extends MockContainer {
@@ -144,16 +150,17 @@ vi.mock('pixi.js', () => ({
 vi.mock('./CharacterActor', () => ({ CharacterActor: state.MockActor }));
 vi.mock('./textureLoader', () => ({
   isInlineCharacterTexture: (url: string) => /^(blob:|data:)/.test(url),
-  loadCharacterTexture: vi.fn(() =>
-    state.textureLoads.shift() ?? Promise.resolve(new state.MockTexture()),
+  loadCharacterTexture: vi.fn(
+    () =>
+      state.textureLoads.shift() ?? Promise.resolve(new state.MockTexture()),
   ),
 }));
 vi.mock('../motion', async () => {
   const actual = await vi.importActual<typeof import('../motion')>('../motion');
   return {
     ...actual,
-    loadMotionClip: vi.fn((id: string) =>
-      state.motionLoads.get(id) ?? Promise.resolve({ id }),
+    loadMotionClip: vi.fn(
+      (id: string) => state.motionLoads.get(id) ?? Promise.resolve({ id }),
     ),
   };
 });
@@ -299,5 +306,27 @@ describe('AnimatedStage lifecycle', () => {
     expect(fallback).toHaveAttribute('alt', '読み込み失敗');
     view.unmount();
     expect(document.body.querySelector('.animated-stage-fallback')).toBeNull();
+  });
+  it('destroys a renderer that finishes initializing after unmount', async () => {
+    const init = deferred<void>();
+    state.initQueue.push(init.promise);
+    const view = render(
+      <AnimatedStage
+        character={character}
+        motionId="idle"
+        effectIds={[]}
+        backgroundId="plain_cream"
+      />,
+    );
+    const app = state.appInstances[0]!;
+    app.renderer = undefined as never;
+    view.unmount();
+    expect(app.destroy).not.toHaveBeenCalled();
+    app.renderer = { resize: vi.fn() };
+    await act(async () => {
+      init.resolve();
+      await flush();
+    });
+    expect(app.destroy).toHaveBeenCalledTimes(1);
   });
 });

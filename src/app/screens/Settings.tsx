@@ -66,7 +66,9 @@ export default function Settings() {
         setUsage(used);
         setPersistent(persisted);
       })
-      .catch(() => setError(t('error')));
+      .catch(() => {
+        if (alive) setError(t('error'));
+      });
     return () => {
       alive = false;
     };
