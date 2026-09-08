@@ -120,3 +120,39 @@ for (const viewport of viewports) {
     expect(pageErrors).toEqual([]);
   });
 }
+
+test('shows the character image when WebGL initialization is unavailable', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    // The original receiver is explicitly supplied through Reflect.apply below.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      configurable: true,
+      value(this: HTMLCanvasElement, kind: string, ...options: unknown[]) {
+        if (/webgl/i.test(kind)) return null;
+        return Reflect.apply(getContext, this, [
+          kind,
+          ...options,
+        ]) as RenderingContext | null;
+      },
+    });
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  const character = page.locator('a.art[href*="/characters/"]').first();
+  await expect(character).toBeVisible();
+  await character.click();
+  const fallback = page.locator('.animated-stage-fallback');
+  await expect(fallback).toBeVisible();
+  await expect
+    .poll(() =>
+      fallback.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await page.locator('.site-header nav a').first().click();
+  await expect(fallback).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

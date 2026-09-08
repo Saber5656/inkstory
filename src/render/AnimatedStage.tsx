@@ -202,7 +202,12 @@ export function AnimatedStage({
       fallbackImage = image;
     };
     void app
-      .init({ resizeTo: host, antialias: true, background: '#f7f1e3' })
+      .init({
+        preference: ['webgl'],
+        resizeTo: host,
+        antialias: true,
+        background: '#f7f1e3',
+      })
       .then(() => {
         if (disposed) {
           destroyApp();
