@@ -1,6 +1,8 @@
 import eslint from '@eslint/js';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+import i18next from 'eslint-plugin-i18next';
 import tseslint from 'typescript-eslint';
 
 const typedFiles = ['**/*.{ts,tsx}'];
@@ -14,7 +16,7 @@ const typedRecommended = tseslint.configs.recommendedTypeChecked.map(
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**'],
+    ignores: ['dist/**', 'dist-hosting/**', 'coverage/**'],
   },
   eslint.configs.recommended,
   ...typedRecommended,
@@ -35,6 +37,21 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+    },
+  },
+  {
+    files: ['src/**/*.tsx'],
+    ignores: ['**/*.test.tsx', '**/standalone-harness.tsx'],
+    plugins: { 'jsx-a11y': jsxA11y, i18next },
+    rules: {
+      ...jsxA11y.configs.recommended.rules,
+      'i18next/no-literal-string': [
+        'error',
+        {
+          mode: 'jsx-text-only',
+          words: { exclude: ['^[0-9\\s/.:×↑↓↗✳⚙⌂▤-]+$', '^MB$'] },
+        },
+      ],
     },
   },
   {

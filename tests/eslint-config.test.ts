@@ -20,7 +20,17 @@ async function lintWithRepositoryConfig(
   return result.messages;
 }
 
-describe('ESLint security guard', () => {
+describe('ESLint security guard', { timeout: 15000 }, () => {
+  it('rejects user-facing literals in application TSX', async () => {
+    const messages = await lintWithRepositoryConfig(
+      'export function Literal() {return <button>Hello there</button>;}',
+    );
+    expect(
+      messages.some(
+        (message) => message.ruleId === 'i18next/no-literal-string',
+      ),
+    ).toBe(true);
+  });
   it('rejects dangerouslySetInnerHTML through the repository config', async () => {
     const source = `export function UnsafeMarkup() {
       return <div dangerouslySetInnerHTML={{ __html: '<strong>unsafe</strong>' }} />;

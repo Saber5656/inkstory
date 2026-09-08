@@ -3,3 +3,8 @@ coverage/
 pnpm-lock.yaml
 docs/
 README.md
+
+# Generated assets have byte-level integrity hashes. Regenerate with their tools.
+public/motions/*.json
+assets-src/motions/*.json
+dist-hosting/

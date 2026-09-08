@@ -67,13 +67,8 @@ async function databaseCounts(page: Page): Promise<Record<string, number>> {
 
 test('export then import twice creates independent fresh copies', async ({
   browser,
-  browserName,
   page,
 }, testInfo) => {
-  test.skip(
-    browserName === 'webkit',
-    'The current sample seeder cannot initialize in WebKit; corpus import remains covered below.',
-  );
   await page.goto('/');
   await expect(
     page.getByRole('button', { name: 'サンプルであそぶ' }),

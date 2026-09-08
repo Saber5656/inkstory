@@ -6,3 +6,8 @@ coverage/
 !.env.example
 *.local
 .DS_Store
+
+playwright-report/
+test-results/
+
+dist-hosting/

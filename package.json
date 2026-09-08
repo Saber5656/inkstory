@@ -1,7 +1,7 @@
 {
   "name": "inkstory",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -17,7 +17,13 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:build": "node tools/check-build.mjs",
+    "test:e2e": "playwright test",
+    "test:privacy": "playwright test --grep privacy",
+    "test:capture": "playwright test --config playwright.capture.config.ts",
+    "motion:convert:all": "node tools/motion-pipeline/convert-all.mjs",
+    "test:hosting": "playwright test --config playwright.hosting.config.ts"
   },
   "dependencies": {
     "cdt2d": "^1.0.0",
