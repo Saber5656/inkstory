@@ -78,5 +78,5 @@ function makeIdleClip(): MotionClip {
   const frames = [0, 1, 0, -1, 0];
   const angles = Object.fromEntries(BONE_IDS.map((bone) => [bone, frames])) as Record<string, number[]>;
   const restAngles = Object.fromEntries(BONE_IDS.map((bone) => [bone, 0])) as Record<string, number>;
-  return { schemaVersion: 1, id: 'idle_breathe', name: { ja: 'いき', en: 'Idle' }, keywords: { ja: ['まつ', 'やすむ'], en: ['idle', 'wait'] }, category: 'idle', fps: 10, frameCount: frames.length, loop: true, rootTranslation: frames.map(() => [0, 0] as [number, number]), restAngles, frames: angles } as unknown as MotionClip;
+  return { schemaVersion: 1, id: 'idle_breathe', name: { ja: 'いき', en: 'Idle' }, keywords: { ja: ['まつ', 'やすむ'], en: ['idle', 'wait'] }, category: 'idle', fps: 30, frameCount: frames.length, loop: true, rootTranslation: frames.map(() => [0, 0] as [number, number]), restAngles, frames: angles } as unknown as MotionClip;
 }

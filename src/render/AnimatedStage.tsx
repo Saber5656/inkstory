@@ -9,12 +9,15 @@ export type AnimatedStageProps = { character: CharacterActorOptions; motionId: s
 const BACKGROUNDS: Record<string, string> = { meadow: '/backgrounds/meadow.svg', forest: '/backgrounds/forest.svg', night: '/backgrounds/night.svg', ocean: '/backgrounds/ocean.svg', sky: '/backgrounds/sky.svg', space: '/backgrounds/space.svg', city: '/backgrounds/city.svg', rainbow: '/backgrounds/rainbow.svg' };
 const PLAIN_COLORS: Record<string, string> = { plain_cream: '#fff7e6', plain_blue: '#e0f2fe', plain_pink: '#fce7f3', plain_lilac: '#ede9fe' };
 const asset = (path: string): string => /^(blob:|data:|https?:\/\/)/.test(path) ? path : `${import.meta.env.BASE_URL.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+const backgroundRequests = new WeakMap<Container, number>();
 
 function drawBackground(container: Container, id: string, width: number, height: number): void {
+  const request = (backgroundRequests.get(container) ?? 0) + 1;
+  backgroundRequests.set(container, request);
   container.removeChildren().forEach((child) => child.destroy());
   container.addChild(new Graphics().rect(0, 0, width, height).fill(PLAIN_COLORS[id] ?? '#f7f1e3'));
   const image = BACKGROUNDS[id];
-  if (image) void Assets.load<Texture>(asset(image)).then((texture) => { if (container.destroyed) return; const sprite = new Sprite(texture); sprite.width = width; sprite.height = height; container.addChild(sprite); }, () => undefined);
+  if (image) void Assets.load<Texture>(asset(image)).then((texture) => { if (container.destroyed || backgroundRequests.get(container) !== request) return; const sprite = new Sprite(texture); sprite.width = width; sprite.height = height; container.addChild(sprite); }, () => undefined);
 }
 
 export function AnimatedStage({ character, motionId, effectIds, backgroundId, playing = true, speed = 1, className, 'aria-label': ariaLabel = 'Animated character stage' }: AnimatedStageProps) {
@@ -22,6 +25,7 @@ export function AnimatedStage({ character, motionId, effectIds, backgroundId, pl
   const actorRef = useRef<CharacterActor | null>(null);
   const backdropRef = useRef<Container | null>(null);
   const initialBackgroundRef = useRef(backgroundId);
+  const backgroundIdRef = useRef(backgroundId);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -31,6 +35,7 @@ export function AnimatedStage({ character, motionId, effectIds, backgroundId, pl
     const app = new Application();
     const actor = new CharacterActor({ ...character });
     actorRef.current = actor;
+    if (import.meta.env.DEV) Object.assign(window, { __inkstoryActor: actor });
     actor.fitToSize(Math.min(host.clientWidth || 320, host.clientHeight || 240) * 0.55);
     if (typeof Image !== 'undefined' && character.textureUrl) void Assets.load<Texture>(asset(character.textureUrl)).then((texture) => { if (!disposed) actor.setTexture(texture); }, () => undefined);
     void app.init({ resizeTo: host, antialias: true, background: '#f7f1e3' }).then(() => {
@@ -38,17 +43,26 @@ export function AnimatedStage({ character, motionId, effectIds, backgroundId, pl
       initialized = true;
       const backdrop = new Container();
       backdropRef.current = backdrop;
+      host.appendChild(app.canvas);
       drawBackground(backdrop, initialBackgroundRef.current, host.clientWidth || 320, host.clientHeight || 240);
       app.stage.addChild(backdrop, actor);
+      const resize = (): void => { const width = host.clientWidth || 320; const height = host.clientHeight || 240; app.renderer.resize(width, height); actor.setStagePosition(width / 2, height * 0.58); actor.fitToSize(Math.min(width, height) * 0.55); drawBackground(backdrop, backgroundIdRef.current, width, height); };
       actor.setStagePosition((host.clientWidth || 320) / 2, (host.clientHeight || 320) * 0.58);
       actor.fitToSize(Math.min(host.clientWidth || 320, host.clientHeight || 240) * 0.55);
+      const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : undefined;
+      observer?.observe(host);
+      resize();
       app.ticker.add((ticker) => actor.tick(ticker.deltaMS));
+      (app as Application & { __inkstoryResizeObserver?: ResizeObserver }).__inkstoryResizeObserver = observer;
     });
     return () => {
       disposed = true;
       actorRef.current = null;
+      if (import.meta.env.DEV) delete (window as Window & { __inkstoryActor?: CharacterActor }).__inkstoryActor;
       backdropRef.current = null;
-      if (initialized) app.destroy(true);
+      const observer = (app as Application & { __inkstoryResizeObserver?: ResizeObserver }).__inkstoryResizeObserver;
+      observer?.disconnect();
+      if (initialized) { const canvas = app.canvas; if (canvas.parentElement === host) host.removeChild(canvas); app.destroy(true); }
     };
   }, [character]);
 
@@ -61,7 +75,9 @@ export function AnimatedStage({ character, motionId, effectIds, backgroundId, pl
     if (playing) actor.play(); else actor.pause();
     if (typeof fetch === 'function') void loadMotionClip(motionId, fetch, import.meta.env.BASE_URL).then((clip) => actor.setMotionClip(clip), () => undefined);
     return undefined;
-  }, [effectIds, motionId, playing, speed]);
+  }, [character, effectIds, motionId, playing, speed]);
+
+  useEffect(() => { backgroundIdRef.current = backgroundId; }, [backgroundId]);
 
   useEffect(() => {
     const backdrop = backdropRef.current;
