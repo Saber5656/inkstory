@@ -9,7 +9,7 @@ const CLIP_IDS = ['idle_breathe', 'wave', 'walk', 'run', 'jump', 'dance_1', 'dan
 const BONE_IDS = ['hip', 'torso', 'neck', 'right_shoulder', 'right_elbow', 'right_hand', 'left_shoulder', 'left_elbow', 'left_hand', 'right_hip', 'right_knee', 'right_foot', 'left_hip', 'left_knee', 'left_foot'];
 
 function parseArgs(argv) {
-  const values = { source: resolve(ROOT, 'public/motions'), out: resolve(ROOT, 'public/motions') };
+  const values = { source: resolve(ROOT, 'assets-src/motions'), out: resolve(ROOT, 'public/motions') };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--source' || flag === '--out') {

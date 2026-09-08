@@ -7,9 +7,10 @@ synthetic acceptance fixture is run with:
 pnpm exec vitest run src/motion/bvhPipeline.test.ts
 ```
 
-The checked-in MVP library intentionally uses original procedural seed clips. To
-reproduce those ten files and rebuild their catalog hashes, run the tools-side command
-(the root package may expose it as `motion:convert:all`):
+The checked-in MVP library intentionally uses original procedural seed clips. Their
+authoritative source files live under `assets-src/motions/`. To reproduce the ten
+generated files and rebuild their catalog hashes, run the tools-side command (the root
+package may expose it as `motion:convert:all`):
 
 ```sh
 node tools/motion-pipeline/convert-all.mjs

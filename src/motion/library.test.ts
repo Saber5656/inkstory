@@ -11,7 +11,10 @@ describe('bundled motion library', () => {
     expect(index).toHaveLength(10);
     for (const entry of index) {
       const file = readFileSync(`public${entry.file}`);
+      const source = readFileSync(`assets-src${entry.file}`);
       MotionClipSchema.parse(JSON.parse(file.toString('utf8')));
+      MotionClipSchema.parse(JSON.parse(source.toString('utf8')));
+      expect(file).toEqual(source);
       expect(createHash('sha256').update(file).digest('hex')).toBe(
         entry.sha256,
       );
