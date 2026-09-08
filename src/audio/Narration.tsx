@@ -71,10 +71,10 @@ export function Narration({
       }
     }
   }
-  if (typeof MediaRecorder === 'undefined')
-    return <p className="small">{t('micUnsupported')}</p>;
+  const recordingSupported = typeof MediaRecorder !== 'undefined';
   return (
     <section>
+      {!recordingSupported && <p className="small">{t('micUnsupported')}</p>}
       {error && (
         <p role="alert" className="error">
           {error}
@@ -107,9 +107,11 @@ export function Narration({
         </>
       ) : (
         <>
-          <button onClick={() => setExplainer(true)}>
-            {t(blobId ? 'recordAgain' : 'record')}
-          </button>
+          {recordingSupported && (
+            <button onClick={() => setExplainer(true)}>
+              {t(blobId ? 'recordAgain' : 'record')}
+            </button>
+          )}
           {url && (
             <>
               {/* User-authored offline audio has no automatic transcript; the story is editable beside it. */}
@@ -122,7 +124,7 @@ export function Narration({
           )}
         </>
       )}
-      {explainer && (
+      {recordingSupported && explainer && (
         <Dialog
           title={t('micTitle')}
           onClose={() => setExplainer(false)}
