@@ -56,3 +56,21 @@ test('reencode applies EXIF orientation, strips APP1 metadata, and rejects bad i
   expect(result.tooLarge).toBe(true);
   expect(result.corrupt).toBe(true);
 });
+
+test('vision worker returns a transferable segmentation result', async ({ page }) => {
+  await page.goto('http://127.0.0.1:5173/');
+  const result = await page.evaluate(async () => {
+    const worker = new Worker('/src/vision/vision.worker.ts', { type: 'module' });
+    const data = new Uint8ClampedArray(64 * 64 * 4); data.fill(255);
+    for (let y = 16; y < 48; y += 1) for (let x = 16; x < 48; x += 1) { const i = (y * 64 + x) * 4; data[i] = 20; data[i + 1] = 20; data[i + 2] = 20; data[i + 3] = 255; }
+    const response = await new Promise<{ result?: { mask: Uint8Array; coverage: number; ok: boolean }; error?: string }>((resolve) => {
+      worker.onmessage = (event) => resolve(event.data); worker.postMessage({ id: 'worker-test', imageData: new ImageData(data, 64, 64) });
+    });
+    worker.terminate();
+    return response.error ? { error: response.error } : { length: response.result?.mask.length, coverage: response.result?.coverage, ok: response.result?.ok };
+  });
+  expect(result.error).toBeUndefined();
+  expect(result.length).toBe(64 * 64);
+  expect(result.ok).toBe(true);
+  expect(result.coverage).toBeGreaterThan(0.1);
+});
