@@ -1,12 +1,13 @@
 import * as ort from 'onnxruntime-web';
-import { decodeHeatmaps, letterbox, type ImageDataLike } from './inference.ts';
-import { providerSessionOptions, type ModelManifest } from './modelLoader.ts';
+import type { ImageDataLike } from './inference.ts';
+import type { ModelManifest, RuntimeAssetManifest } from './modelLoader.ts';
 import type { PoseProbe } from './probe.ts';
+import { createVerifiedPoseSession, runPoseInference, type PoseSessionLike } from './workerCore.ts';
 
-export interface PoseWorkerRequest { id: number; model: ArrayBuffer; manifest: ModelManifest; image: ImageDataLike; probe: PoseProbe; }
-export interface PoseWorkerResponse { id: number; keypoints?: ReturnType<typeof decodeHeatmaps>; provider?: string; error?: string; }
+export interface PoseWorkerRequest { id: number; model: ArrayBuffer; manifest: ModelManifest; image: ImageDataLike; probe: PoseProbe; wasm?: { bytes: ArrayBuffer; manifest: RuntimeAssetManifest }; }
+export interface PoseWorkerResponse { id: number; keypoints?: Awaited<ReturnType<typeof runPoseInference>>; provider?: string; error?: string; }
 let generation = 0;
-let session: ort.InferenceSession | undefined;
+let session: PoseSessionLike | undefined;
 let loadedModelId = '';
 
 const workerScope = self as unknown as { onmessage: ((event: MessageEvent<PoseWorkerRequest>) => void) | null; postMessage(message: unknown, transfer?: Transferable[]): void };
@@ -16,23 +17,13 @@ async function handleMessage(event: MessageEvent<PoseWorkerRequest>): Promise<vo
   try {
     let provider = request.probe.executionProvider;
     if (!session || loadedModelId !== request.manifest.id) {
-      try {
-        session = await ort.InferenceSession.create(request.model, providerSessionOptions(provider, request.probe.numThreads));
-      } catch (error) {
-        if (provider !== 'webgpu') throw error;
-        provider = 'wasm';
-        session = await ort.InferenceSession.create(request.model, providerSessionOptions('wasm', request.probe.numThreads));
-      }
+      const created = await createVerifiedPoseSession({ create: (model, options) => ort.InferenceSession.create(model, options), setWasmBinary: (bytes) => { ort.env.wasm.wasmBinary = bytes; } }, request.model, provider, request.probe.numThreads, request.wasm);
+      session = created.session;
+      provider = created.provider;
       loadedModelId = request.manifest.id;
     }
     if (currentGeneration !== generation) return;
-    const input = letterbox(request.image, request.manifest);
-    const inputTensor = new ort.Tensor('float32', input.tensor, [1, 3, request.manifest.inputHeight, request.manifest.inputWidth]);
-    const outputs = await session.run({ [session.inputNames[0]!]: inputTensor });
-    const output = outputs[session.outputNames[0]!];
-    if (!output || !('data' in output) || !Array.isArray(output.dims) || output.dims.length < 3) throw new Error('Pose model output is not a heatmap tensor');
-    const dims = output.dims; const heatmapHeight = Number(dims[dims.length - 2]); const heatmapWidth = Number(dims[dims.length - 1]);
-    const keypoints = decodeHeatmaps(output.data as Float32Array, heatmapWidth, heatmapHeight, input.transform);
+    const keypoints = await runPoseInference(session, request.image, request.manifest, (data, dims) => new ort.Tensor('float32', data, dims));
     if (currentGeneration !== generation) return;
     workerScope.postMessage({ id: request.id, keypoints, provider });
   } catch (error) {

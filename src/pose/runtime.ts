@@ -19,7 +19,10 @@ export async function estimatePose(texture: ImageBitmap, options: PoseRuntimeOpt
     const response = await new Promise<{ keypoints?: DecodedKeypoint[]; provider?: string; error?: string }>((resolve) => {
       worker.onmessage = (event: MessageEvent<{ id: number; keypoints?: DecodedKeypoint[]; provider?: string; error?: string }>) => { if (event.data.id === id) resolve(event.data); };
       worker.onerror = () => resolve({ error: 'Pose worker failed' });
-      worker.postMessage({ id, model: loaded.bytes, manifest: loaded.manifest, image, probe }, [loaded.bytes]);
+      const wasm = loaded.wasm;
+      const transfer: Transferable[] = [loaded.bytes];
+      if (wasm) transfer.push(wasm.bytes);
+      worker.postMessage({ id, model: loaded.bytes, manifest: loaded.manifest, image, probe, wasm }, transfer);
     });
     if (!response.keypoints) return { available: false, reason: 'inference', detail: response.error };
     return { available: true, keypoints: response.keypoints, executionProvider: response.provider ?? probe.executionProvider };

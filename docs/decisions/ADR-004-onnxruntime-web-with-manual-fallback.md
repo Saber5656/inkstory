@@ -16,6 +16,11 @@ compatibility, size after quantization, latency).
 2. Model artifact: converted+quantized ONNX, budget ≤ 30 MB (hard cap 60 MB), served
    same-origin under `/models/` with a build-time `sha256` manifest verified via
    SubtleCrypto before use; runtime-cached in Cache Storage.
+   The same reviewed manifest must carry the ORT wasm file, SHA-256, and byte length when
+   a model is available. `modelLoader` verifies both assets (including cache purge and one
+   retry), transfers the wasm bytes to the worker, and the worker sets
+   `ort.env.wasm.wasmBinary` only after verification immediately before a wasm session is
+   created. An unverified or missing wasm asset cannot reach `InferenceSession.create`.
 3. Conversion happens offline in `tools/model-pipeline/` (spike issue 10) and artifacts
    are vendored in repo release assets with provenance (source commit, script, hashes).
 4. **The product must be 100% functional with no model**: template-pose prefill + the
@@ -27,5 +32,9 @@ compatibility, size after quantization, latency).
 - The riskiest technical item (model conversion) is isolated in one timeboxed spike that
   cannot block the release.
 - CSP must allow `'wasm-unsafe-eval'` (verified/minimized in issue 24).
+- The current bundled manifest is `status:"unavailable"`, so no model or wasm fetch is
+  attempted; the manual template-pose path remains the shipped behavior. The eventual
+  available manifest must include both model and wasm integrity records before enabling
+  runtime inference.
 - If the spike fails outright, v1 ships with manual joints only and the model becomes a
   post-v1 fast-follow — an explicitly acceptable outcome recorded here.

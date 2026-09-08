@@ -30,7 +30,13 @@ latency is claimed. Candidate remedies are a pinned x86_64/Linux conversion
 environment, source build for mmdeploy, or an audited smaller COCO heatmap model.
 
 `src/pose/modelManifest.generated.json` is machine-readable with `status: "unavailable"`;
-no placeholder ONNX is shipped. ADR-004 therefore selects template pose/manual joints.
+no placeholder ONNX or ORT wasm manifest is shipped. ADR-004 therefore selects template
+pose/manual joints. When conversion is unblocked, the reviewed manifest must include a
+separately hashed ORT wasm asset (`file`, `sha256`, `sizeBytes`). `modelLoader` verifies
+the model and wasm bytes, including cached-byte purge and one retry, before handing them
+to the worker; the worker assigns the verified wasm bytes to `ort.env.wasm.wasmBinary`
+immediately before a wasm session is instantiated. There is no model or wasm fetch for
+the current unavailable status.
 
 Reproduction:
 
