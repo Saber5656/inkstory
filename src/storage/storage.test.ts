@@ -230,4 +230,76 @@ describe('storage repositories', () => {
       StorageCorruptionError,
     );
   });
+
+  it('replaces narration using the latest page and keeps the operation atomic', async () => {
+    const oldBlobId = await blobsRepo.put(
+      'audio/ogg',
+      new NodeBlob(['old'], { type: 'audio/ogg' }),
+    );
+    const page = {
+      id: id(32),
+      bookId: id(33),
+      backgroundId: 'plain_cream',
+      text: 'initial',
+      effectIds: [] as string[],
+      narrationBlobId: oldBlobId,
+      narrationMime: 'audio/ogg',
+      advance: 'tap' as const,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await pagesRepo.put(page);
+    await pagesRepo.put({ ...page, text: 'latest', updatedAt: 2 });
+    const replaced = await pagesRepo.replaceNarration(page.id, {
+      blob: new NodeBlob(['new'], { type: 'audio/webm' }) as unknown as Blob,
+      mime: 'audio/webm',
+    });
+    expect(replaced.text).toBe('latest');
+    expect(replaced.narrationMime).toBe('audio/webm');
+    expect(replaced.narrationBlobId).not.toBe(oldBlobId);
+    expect(await blobsRepo.get(oldBlobId)).toBeUndefined();
+
+    const blobCount = await inkstoryDb.blobs.count();
+    const originalPut = inkstoryDb.pages.put.bind(inkstoryDb.pages);
+    vi.spyOn(inkstoryDb.pages, 'put').mockRejectedValueOnce(
+      new Error('write failed'),
+    );
+    await expect(
+      pagesRepo.replaceNarration(page.id, {
+        blob: new NodeBlob(['failed'], {
+          type: 'audio/ogg',
+        }) as unknown as Blob,
+        mime: 'audio/ogg',
+      }),
+    ).rejects.toThrow('write failed');
+    vi.spyOn(inkstoryDb.pages, 'put').mockImplementation(originalPut);
+    expect(await inkstoryDb.blobs.count()).toBe(blobCount);
+    expect((await pagesRepo.get(page.id))?.text).toBe('latest');
+    expect((await pagesRepo.get(page.id))?.narrationMime).toBe('audio/webm');
+  });
+
+  it('deletes narration without deleting a blob still referenced by another page', async () => {
+    const blobId = await blobsRepo.put(
+      'audio/ogg',
+      new NodeBlob(['shared'], { type: 'audio/ogg' }),
+    );
+    const first = {
+      id: id(34),
+      bookId: id(35),
+      backgroundId: 'plain_cream',
+      text: '',
+      effectIds: [] as string[],
+      narrationBlobId: blobId,
+      narrationMime: 'audio/ogg',
+      advance: 'tap' as const,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await pagesRepo.put(first);
+    await pagesRepo.put({ ...first, id: id(36) });
+    const deleted = await pagesRepo.replaceNarration(first.id);
+    expect(deleted.narrationBlobId).toBeUndefined();
+    expect(deleted.narrationMime).toBeUndefined();
+    expect(await blobsRepo.get(blobId)).toBeDefined();
+  });
 });

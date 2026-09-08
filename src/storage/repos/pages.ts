@@ -1,6 +1,8 @@
-import { BookSchema, PageSchema } from '../../domain/schemas';
+import { BlobRecordSchema, BookSchema, PageSchema } from '../../domain/schemas';
+import { newId } from '../../domain/ids';
 import type { Page } from '../../domain/types';
 import { db } from '../db';
+import { encodeBlobRecord } from '../blobPersistence';
 import { gc } from '../gc';
 import { readValidated, writeValidated } from './helpers';
 import { withQuotaHandling } from '../quota';
@@ -66,6 +68,51 @@ export const pagesRepo = {
     ),
   update: (page: Page): Promise<Page> =>
     writeValidated(db.pages, PageSchema, page, 'page'),
+  async replaceNarration(
+    pageId: string,
+    input?: { blob: Blob; mime: string },
+  ): Promise<Page> {
+    const persistedBlob = input
+      ? await encodeBlobRecord(
+          BlobRecordSchema.parse({
+            id: newId(),
+            mime: input.mime,
+            data: input.blob,
+            size: input.blob.size,
+            createdAt: Date.now(),
+          }),
+        )
+      : undefined;
+    return withQuotaHandling(() =>
+      db.transaction(
+        'rw',
+        [db.pages, db.blobs, db.books, db.drawings, db.characters, db.settings],
+        async () => {
+          const current = await readValidated(
+            db.pages,
+            PageSchema,
+            pageId,
+            'page',
+          );
+          if (!current) throw new Error(`Page not found (${pageId})`);
+          const updated = PageSchema.parse({
+            ...current,
+            ...(persistedBlob
+              ? {
+                  narrationBlobId: persistedBlob.id,
+                  narrationMime: persistedBlob.mime,
+                }
+              : { narrationBlobId: undefined, narrationMime: undefined }),
+            updatedAt: Date.now(),
+          });
+          if (persistedBlob) await db.blobs.put(persistedBlob);
+          await db.pages.put(updated);
+          await gc.sweepInTransaction();
+          return updated;
+        },
+      ),
+    );
+  },
   async delete(id: string): Promise<void> {
     await withQuotaHandling(() =>
       db.transaction(
