@@ -26,27 +26,38 @@ export default function Stage() {
   const locale = i18n.language === 'en' ? 'en' : 'ja';
   useEffect(() => {
     let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setCharacter(undefined);
+      setEffects([]);
+      setError('');
+    });
     if (id)
       void charactersRepo
         .get(id)
         .then((value) => {
-          if (active) {
-            setCharacter(value);
-            setEffects((value?.effectPrefs.effectIds as EffectId[]) ?? []);
+          if (!active) return;
+          if (!value) {
+            navigate('/', { replace: true });
+            return;
           }
+          setCharacter(value);
+          setEffects((value.effectPrefs.effectIds as EffectId[]) ?? []);
         })
-        .catch(() => setError(t('error')));
+        .catch(() => {
+          if (active) setError(t('error'));
+        });
     return () => {
       active = false;
     };
-  }, [id, t]);
+  }, [id, navigate, t]);
   const actor = useMemo(
     () => ({
       textureUrl: textureUrl ?? '',
       rig: character?.rig ?? null,
       rigType: character?.rigType ?? ('cutout' as const),
     }),
-    [textureUrl, character],
+    [textureUrl, character?.rig, character?.rigType],
   );
   function rename(name: string) {
     if (!character) return;
