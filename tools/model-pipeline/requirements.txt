@@ -1,0 +1,2 @@
+# Conversion dependencies are intentionally isolated from the app environment.
+# The spike is blocked before conversion: upstream MAR is 374,824,711 bytes (>60MB).
