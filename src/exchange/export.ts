@@ -1,3 +1,4 @@
+import pkg from '../../package.json';
 import { zipSync, strToU8 } from 'fflate';
 
 import {
@@ -84,7 +85,7 @@ export async function exportBundle(selection: ExportSelection): Promise<Blob> {
   );
   const manifest = ExportManifestSchema.parse({
     formatVersion: 1,
-    appVersion: '0.0.0',
+    appVersion: pkg.version,
     exportedAt: Date.now(),
     characterIds: [...characterIds],
     bookIds,
