@@ -10,6 +10,7 @@ import { settingsRepo } from '@/storage/repos/settings';
 import { useBlobUrl } from '@/ui/useBlobUrl';
 import { Dialog } from '@/ui/Dialog';
 import { ensureSamples } from '@/samples/seed';
+import { Onboarding } from '../onboarding/Onboarding';
 function CharacterCard({
   character,
   onDelete,
@@ -77,9 +78,11 @@ export default function Library() {
       active = false;
     };
   }, [i18n.language, t]);
-  async function dismiss() {
-    await settingsRepo.set('onboarding.dismissed', true);
+  function dismiss() {
     setWelcome(false);
+    void settingsRepo
+      .set('onboarding.dismissed', true)
+      .catch(() => setError(t('error')));
   }
   async function createBook() {
     const now = Date.now();
@@ -110,30 +113,14 @@ export default function Library() {
   return (
     <main>
       {welcome && (
-        <aside className="welcome">
-          <div>
-            <h2>{t('welcome')}</h2>
-            <p>{t('welcomeBody')}</p>
-          </div>
-          <div className="actions">
-            <button
-              onClick={() => {
-                void dismiss();
-                if (books[0]) navigate(`/books/${books[0].id}/play`);
-              }}
-            >
-              {t('trySample')}
-            </button>
-            <button
-              aria-label={t('close')}
-              onClick={() => {
-                void dismiss();
-              }}
-            >
-              ×
-            </button>
-          </div>
-        </aside>
+        <Onboarding
+          sampleBookId={books[0]?.id}
+          onDismiss={dismiss}
+          onWatchSample={() => {
+            dismiss();
+            if (books[0]) navigate(`/books/${books[0].id}/play`);
+          }}
+        />
       )}
       <section className="hero">
         <div>
