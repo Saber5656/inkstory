@@ -55,6 +55,15 @@ export interface ImportResult {
   characterIds: string[];
   bookIds: string[];
 }
+export type ImageDecoder = (
+  bytes: Uint8Array,
+  path: string,
+) => Promise<Uint8Array>;
+export interface PrepareImportOptions {
+  useWorker?: boolean;
+  imageDecoder?: ImageDecoder;
+  onProgress?: (processedBytes: number, totalBytes: number) => void;
+}
 
 function fail(path: string, message: string, cause?: unknown): never {
   throw new BundleValidationError(path, message, cause);
@@ -67,8 +76,12 @@ async function inputBytes(input: BundleInput): Promise<Uint8Array> {
   const size = input instanceof Uint8Array ? input.byteLength : input.size;
   if (size > MAX_BUNDLE_BYTES) fail('bundle', 'bundle exceeds 256 MiB limit');
   if (input instanceof Uint8Array) return input;
-  if (typeof input.arrayBuffer === 'function')
-    return new Uint8Array(await input.arrayBuffer());
+  if (typeof input.arrayBuffer === 'function') {
+    const bytes = new Uint8Array(await input.arrayBuffer());
+    if (bytes.byteLength > MAX_BUNDLE_BYTES)
+      fail('bundle', 'bundle exceeds 256 MiB limit');
+    return bytes;
+  }
   if (typeof FileReader !== 'undefined') {
     return new Uint8Array(
       await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -87,13 +100,121 @@ async function inputBytes(input: BundleInput): Promise<Uint8Array> {
   fail('bundle', 'cannot read bundle input');
 }
 
-async function unzipStream(bytes: Uint8Array): Promise<EntryMap> {
+interface CentralEntry {
+  path: string;
+  compressedSize: number;
+  uncompressedSize: number;
+}
+
+function readU16(view: DataView, offset: number, path: string): number {
+  if (offset + 2 > view.byteLength) fail(path, 'truncated central directory');
+  return view.getUint16(offset, true);
+}
+
+function readU32(view: DataView, offset: number, path: string): number {
+  if (offset + 4 > view.byteLength) fail(path, 'truncated central directory');
+  return view.getUint32(offset, true);
+}
+
+/** Validates the ZIP central directory before any decompression is started. */
+export function preflightCentralDirectory(bytes: Uint8Array): CentralEntry[] {
+  const start = Math.max(0, bytes.byteLength - 22 - 0xffff);
+  let eocd = -1;
+  for (let offset = bytes.byteLength - 22; offset >= start; offset -= 1) {
+    if (
+      offset >= 0 &&
+      bytes[offset] === 0x50 &&
+      bytes[offset + 1] === 0x4b &&
+      bytes[offset + 2] === 0x05 &&
+      bytes[offset + 3] === 0x06
+    ) {
+      eocd = offset;
+      break;
+    }
+  }
+  if (eocd < 0) fail('bundle', 'ZIP end of central directory is missing');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const disk = readU16(view, eocd + 4, 'bundle');
+  const centralDisk = readU16(view, eocd + 6, 'bundle');
+  const entriesOnDisk = readU16(view, eocd + 8, 'bundle');
+  const entriesTotal = readU16(view, eocd + 10, 'bundle');
+  const centralSize = readU32(view, eocd + 12, 'bundle');
+  const centralOffset = readU32(view, eocd + 16, 'bundle');
+  if (
+    disk !== 0 ||
+    centralDisk !== 0 ||
+    entriesOnDisk !== entriesTotal ||
+    entriesTotal === 0xffff ||
+    centralSize === 0xffffffff ||
+    centralOffset === 0xffffffff
+  )
+    fail('bundle', 'multi-disk or ZIP64 archives are not supported');
+  if (entriesTotal > MAX_ENTRIES) fail('bundle', 'too many entries');
+  if (
+    centralOffset + centralSize > bytes.byteLength ||
+    centralOffset + centralSize > eocd
+  )
+    fail('bundle', 'central directory exceeds archive bounds');
+  const result: CentralEntry[] = [];
+  const paths = new Set<string>();
+  let offset = centralOffset;
+  let total = 0;
+  for (let index = 0; index < entriesTotal; index += 1) {
+    if (readU32(view, offset, 'bundle') !== 0x02014b50)
+      fail('bundle', 'invalid central directory entry');
+    const compression = readU16(view, offset + 10, 'bundle');
+    const compressedSize = readU32(view, offset + 20, 'bundle');
+    const uncompressedSize = readU32(view, offset + 24, 'bundle');
+    const nameLength = readU16(view, offset + 28, 'bundle');
+    const extraLength = readU16(view, offset + 30, 'bundle');
+    const commentLength = readU16(view, offset + 32, 'bundle');
+    const end = offset + 46 + nameLength + extraLength + commentLength;
+    if (end > centralOffset + centralSize)
+      fail('bundle', 'central directory entry exceeds bounds');
+    const path = new TextDecoder().decode(
+      bytes.subarray(offset + 46, offset + 46 + nameLength),
+    );
+    if (!BUNDLE_PATH_RE.test(path)) fail(path, 'path is not allowed');
+    if (paths.has(path)) fail(path, 'duplicate entry');
+    if (uncompressedSize > MAX_ENTRY_BYTES)
+      fail(path, 'entry exceeds 64 MiB limit');
+    if (
+      compressedSize > 0 &&
+      uncompressedSize / compressedSize > MAX_COMPRESSION_RATIO
+    )
+      fail(path, 'decompression ratio exceeds limit');
+    total += uncompressedSize;
+    if (total > MAX_TOTAL_UNCOMPRESSED_BYTES)
+      fail(path, 'total uncompressed size exceeds limit');
+    if (compression !== 0 && compression !== 8)
+      fail(path, 'unsupported compression method');
+    paths.add(path);
+    result.push({ path, compressedSize, uncompressedSize });
+    offset = end;
+  }
+  if (offset !== centralOffset + centralSize)
+    fail('bundle', 'central directory size mismatch');
+  if (result[0]?.path !== 'manifest.json')
+    fail('manifest.json', 'manifest must be the first entry');
+  return result;
+}
+
+export async function unzipStream(
+  bytes: Uint8Array,
+  onProgress?: (processedBytes: number, totalBytes: number) => void,
+): Promise<EntryMap> {
+  const centralEntries = preflightCentralDirectory(bytes);
+  const archiveTotal = centralEntries.reduce(
+    (sum, entry) => sum + entry.uncompressedSize,
+    0,
+  );
   return new Promise((resolve, reject) => {
     const entries: EntryMap = new Map();
     let count = 0;
-    let total = 0;
+    let declaredTotal = 0;
     let firstPath: string | undefined;
     let pending = 0;
+    let processed = 0;
     let ended = false;
     let settled = false;
     const finish = (error?: Error) => {
@@ -140,8 +261,8 @@ async function unzipStream(bytes: Uint8Array): Promise<EntryMap> {
         );
         return;
       }
-      total += declared;
-      if (total > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+      declaredTotal += declared;
+      if (declaredTotal > MAX_TOTAL_UNCOMPRESSED_BYTES) {
         finish(
           new BundleValidationError(
             file.name,
@@ -176,6 +297,8 @@ async function unzipStream(bytes: Uint8Array): Promise<EntryMap> {
         if (final) {
           entries.set(file.name, concat(chunks, size));
           pending -= 1;
+          processed += size;
+          onProgress?.(processed, archiveTotal);
           finish();
         }
       };
@@ -256,7 +379,8 @@ async function reencodeImage(
   path: string,
 ): Promise<Uint8Array> {
   const dimensions = ensurePNG(bytes, path);
-  if (typeof createImageBitmap === 'undefined') return bytes;
+  if (typeof createImageBitmap === 'undefined')
+    fail(path, 'browser image decoder is unavailable');
   const image = await createImageBitmap(
     new Blob([bytes as unknown as BlobPart]),
   );
@@ -298,6 +422,66 @@ async function reencodeImage(
       }, 'image/png'),
     ),
   );
+}
+
+async function unzipInWorker(
+  bytes: Uint8Array,
+  onProgress:
+    ((processedBytes: number, totalBytes: number) => void) | undefined,
+): Promise<EntryMap> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./inflateWorker.ts', import.meta.url), {
+      type: 'module',
+    });
+    worker.onmessage = (
+      event: MessageEvent<{
+        entries?: Array<{ path: string; bytes: ArrayBuffer }>;
+        progress?: { processedBytes: number; totalBytes: number };
+        error?: string;
+      }>,
+    ) => {
+      if (event.data.progress) {
+        onProgress?.(
+          event.data.progress.processedBytes,
+          event.data.progress.totalBytes,
+        );
+        return;
+      }
+      worker.terminate();
+      if (event.data.error) {
+        reject(new BundleValidationError('bundle', event.data.error));
+        return;
+      }
+      resolve(
+        new Map(
+          (event.data.entries ?? []).map((entry) => [
+            entry.path,
+            new Uint8Array(entry.bytes),
+          ]),
+        ),
+      );
+    };
+    worker.onerror = () => {
+      worker.terminate();
+      reject(new BundleValidationError('bundle', 'inflate worker failed'));
+    };
+    const transferable =
+      bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+        ? bytes.buffer
+        : bytes.slice().buffer;
+    worker.postMessage({ bytes: transferable }, [transferable]);
+  });
+}
+
+async function unzipEntries(
+  bytes: Uint8Array,
+  useWorker: boolean,
+  onProgress?: (processedBytes: number, totalBytes: number) => void,
+): Promise<EntryMap> {
+  preflightCentralDirectory(bytes);
+  if (useWorker && typeof Worker !== 'undefined')
+    return unzipInWorker(bytes, onProgress);
+  return unzipStream(bytes, onProgress);
 }
 
 function safeAudioMime(mime: string): boolean {
@@ -362,9 +546,18 @@ function freshBlob(
 
 export async function prepareImport(
   input: BundleInput,
+  options: PrepareImportOptions = {},
 ): Promise<PreparedImport> {
   const bytes = await inputBytes(input);
-  const entries = await unzipStream(bytes);
+  const entries = await unzipEntries(
+    bytes,
+    options.useWorker ?? true,
+    options.onProgress,
+  );
+  const decoder: ImageDecoder =
+    options.imageDecoder && import.meta.env.MODE === 'test'
+      ? options.imageDecoder
+      : reencodeImage;
   const manifestBytes = entries.get('manifest.json');
   if (!manifestBytes) fail('manifest.json', 'manifest is missing');
   let rawManifest: unknown;
@@ -418,8 +611,10 @@ export async function prepareImport(
     );
     if (dto.id !== oldId)
       fail(`${base}/character.json`, 'character id does not match path');
-    const texture = await reencodeImage(textureBytes, `${base}/texture.png`);
-    const thumb = await reencodeImage(thumbBytes, `${base}/thumb.png`);
+    const texture = await decoder(textureBytes, `${base}/texture.png`);
+    const thumb = await decoder(thumbBytes, `${base}/thumb.png`);
+    ensurePNG(texture, `${base}/texture.png`);
+    ensurePNG(thumb, `${base}/thumb.png`);
     const textureBlob = freshBlob(texture, 'image/png', dto.createdAt);
     const thumbBlob = freshBlob(thumb, 'image/png', dto.createdAt);
     const imageBlob = freshBlob(texture, 'image/png', dto.createdAt);

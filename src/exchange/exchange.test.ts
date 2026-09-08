@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
 
 import { Blob as NodeBlob } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
 
@@ -15,6 +17,16 @@ import {
 } from '../storage';
 import { exportBundle } from './export';
 import { ImportValidationError, prepareImport, commitImport } from './import';
+
+const TEST_IMAGE_DECODER = (bytes: Uint8Array): Promise<Uint8Array> =>
+  Promise.resolve(bytes);
+const prepare = (
+  input: Parameters<typeof prepareImport>[0],
+  options: {
+    useWorker?: boolean;
+    onProgress?: (processedBytes: number, totalBytes: number) => void;
+  } = {},
+) => prepareImport(input, { imageDecoder: TEST_IMAGE_DECODER, ...options });
 
 const PNG_1X1 = Uint8Array.from(
   atob(
@@ -74,6 +86,17 @@ async function seed(): Promise<{ characterId: string; bookId: string }> {
   return { characterId, bookId };
 }
 
+async function dbCounts(): Promise<number[]> {
+  return Promise.all([
+    db.blobs.count(),
+    db.drawings.count(),
+    db.characters.count(),
+    db.books.count(),
+    db.pages.count(),
+    db.settings.count(),
+  ]);
+}
+
 beforeEach(async () => {
   await db.delete();
   await db.open();
@@ -86,7 +109,19 @@ describe('inkstory exchange', () => {
       characterIds: [seeded.characterId],
       bookIds: [seeded.bookId],
     });
-    const prepared = await prepareImport(bundle);
+    const progress: Array<[number, number]> = [];
+    const prepared = await prepare(bundle, {
+      useWorker: false,
+      onProgress: (processedBytes, totalBytes) =>
+        progress.push([processedBytes, totalBytes]),
+    });
+    expect(progress.at(-1)?.[0]).toBeGreaterThan(0);
+    expect(progress.at(-1)?.[1]).toBeGreaterThanOrEqual(
+      progress.at(-1)?.[0] ?? 0,
+    );
+    await expect(prepareImport(bundle)).rejects.toThrow(
+      'image decoder is unavailable',
+    );
     expect(prepared.preview).toEqual({
       characterCount: 1,
       bookCount: 1,
@@ -98,6 +133,84 @@ describe('inkstory exchange', () => {
     expect(result.characterIds[0]).not.toBe(seeded.characterId);
     expect(await charactersRepo.list()).toHaveLength(2);
     expect(await booksRepo.list()).toHaveLength(2);
+  });
+
+  it('re-encodes imported PNGs through the browser canvas path', async () => {
+    const characterId = id();
+    const dirtyPng = Uint8Array.from([...PNG_1X1, 0x65, 0x58, 0x49, 0x66]);
+    const bytes = zipSync({
+      'manifest.json': strToU8(
+        JSON.stringify({
+          formatVersion: 1,
+          appVersion: '0.1.0',
+          exportedAt: 1,
+          characterIds: [characterId],
+          bookIds: [],
+        }),
+      ),
+      [`characters/${characterId}/character.json`]: strToU8(
+        JSON.stringify({
+          id: characterId,
+          name: 'Momo',
+          createdAt: 1,
+          updatedAt: 1,
+          rigType: 'cutout',
+          rig: null,
+          effectPrefs: {},
+        }),
+      ),
+      [`characters/${characterId}/texture.png`]: dirtyPng,
+      [`characters/${characterId}/thumb.png`]: dirtyPng,
+    });
+    const previousBitmap = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'createImageBitmap',
+    );
+    const previousCanvas = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'OffscreenCanvas',
+    );
+    class FakeCanvas {
+      width = 1;
+      height = 1;
+      getContext() {
+        return { drawImage: () => undefined };
+      }
+      convertToBlob() {
+        return Promise.resolve(new NodeBlob([PNG_1X1], { type: 'image/png' }));
+      }
+    }
+    Object.defineProperty(globalThis, 'createImageBitmap', {
+      configurable: true,
+      value: () =>
+        Promise.resolve({
+          width: 1,
+          height: 1,
+          close: () => undefined,
+        }),
+    });
+    Object.defineProperty(globalThis, 'OffscreenCanvas', {
+      configurable: true,
+      value: FakeCanvas,
+    });
+    try {
+      const prepared = await prepareImport(new NodeBlob([bytes]), {
+        useWorker: false,
+      });
+      const image = prepared.blobs[0];
+      expect(image).toBeDefined();
+      expect(image!.data.size).toBe(PNG_1X1.byteLength);
+      expect(image!.data.type).toBe('image/png');
+    } finally {
+      if (previousBitmap)
+        Object.defineProperty(globalThis, 'createImageBitmap', previousBitmap);
+      else
+        delete (globalThis as { createImageBitmap?: unknown })
+          .createImageBitmap;
+      if (previousCanvas)
+        Object.defineProperty(globalThis, 'OffscreenCanvas', previousCanvas);
+      else delete (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas;
+    }
   });
 
   it.each([
@@ -122,11 +235,38 @@ describe('inkstory exchange', () => {
       'manifest.json': strToU8(JSON.stringify(manifest)),
       ...extra,
     });
-    await expect(prepareImport(new NodeBlob([bytes]))).rejects.toBeInstanceOf(
+    await expect(prepare(new NodeBlob([bytes]))).rejects.toBeInstanceOf(
       ImportValidationError,
     );
-    expect(await db.characters.count()).toBe(0);
+    expect(await dbCounts()).toEqual([0, 0, 0, 0, 0, 0]);
   });
+
+  it.each([
+    ['path-traversal.zip', 'path is not allowed'],
+    ['unknown-top-level.zip', 'path is not allowed'],
+    ['nested-archive.zip', 'path is not allowed'],
+    ['too-many-entries.zip', 'too many entries'],
+    ['entry-size-cap.zip', 'entry exceeds 64 MiB limit'],
+    ['total-size-cap.zip', 'total uncompressed size exceeds limit'],
+    ['ratio-bomb.zip', 'decompression ratio exceeds limit'],
+    ['oversized-image.zip', 'image dimensions exceed 4096x4096'],
+    ['nan-rig.zip', 'invalid JSON or schema'],
+    ['extra-json-key.zip', 'invalid JSON or schema'],
+    ['dangling-audio.zip', 'dangling audio entry'],
+    ['unsafe-audio-mime.zip', 'audio MIME type or parameters are unsafe'],
+    ['spoofed-audio.zip', 'audio bytes do not match MIME type'],
+    ['future-format.zip', 'update inkstory to import this bundle'],
+  ])(
+    'rejects checked-in malicious fixture %s without any DB writes',
+    async (name, reason) => {
+      const before = await dbCounts();
+      const bytes = await readFile(
+        resolve(process.cwd(), 'tests/fixtures/bundles', name),
+      );
+      await expect(prepare(new NodeBlob([bytes]))).rejects.toThrow(reason);
+      expect(await dbCounts()).toEqual(before);
+    },
+  );
 
   it('rejects strict manifest and JSON, dangling references, unsafe audio MIME, and spoofed audio', async () => {
     const characterId = id();
@@ -178,10 +318,10 @@ describe('inkstory exchange', () => {
       [`books/${bookId}/audio/${pageId}.bin`]: strToU8('MZ'),
     };
     await expect(
-      prepareImport(new NodeBlob([zipSync(common)])),
+      prepare(new NodeBlob([zipSync(common)])),
     ).rejects.toBeInstanceOf(ImportValidationError);
     await expect(
-      prepareImport(
+      prepare(
         new NodeBlob([
           zipSync({
             ...common,
@@ -193,7 +333,7 @@ describe('inkstory exchange', () => {
       ),
     ).rejects.toBeInstanceOf(ImportValidationError);
     await expect(
-      prepareImport(
+      prepare(
         new NodeBlob([
           zipSync({
             ...common,

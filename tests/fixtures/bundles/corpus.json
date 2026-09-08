@@ -1,0 +1,28 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    { "id": "path-traversal", "reason": "path is not allowed" },
+    { "id": "unknown-top-level", "reason": "path is not allowed" },
+    { "id": "nested-archive", "reason": "path is not allowed" },
+    { "id": "too-many-entries", "reason": "too many entries" },
+    { "id": "entry-size-cap", "reason": "entry exceeds 64 MiB limit" },
+    {
+      "id": "total-size-cap",
+      "reason": "total uncompressed size exceeds limit"
+    },
+    { "id": "ratio-bomb", "reason": "decompression ratio exceeds limit" },
+    { "id": "oversized-image", "reason": "image dimensions exceed 4096x4096" },
+    { "id": "nan-rig", "reason": "invalid JSON or schema" },
+    { "id": "extra-json-key", "reason": "invalid JSON or schema" },
+    { "id": "dangling-audio", "reason": "dangling audio entry" },
+    {
+      "id": "unsafe-audio-mime",
+      "reason": "audio MIME type or parameters are unsafe"
+    },
+    { "id": "spoofed-audio", "reason": "audio bytes do not match MIME type" },
+    {
+      "id": "future-format",
+      "reason": "update inkstory to import this bundle"
+    }
+  ]
+}
