@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Texture } from 'pixi.js';
-import { SkinnedMesh, uvsForVertices } from './SkinnedMesh';
+import { SkinnedMesh, makeMeshIndices, uvsForVertices } from './SkinnedMesh';
 
 describe('skinned mesh texture coordinates', () => {
   it('maps normalized mesh extents to the full texture', () => {
@@ -24,4 +24,12 @@ it('keeps immutable rest positions across skin updates', () => {
   mesh.updateSkin([identity]);
   expect([...mesh.restVertices]).toEqual([1, 2, 3, 4]);
   expect([...mesh.skinnedVertices]).toEqual([1, 2, 3, 4]);
+});
+
+it('uses 16-bit indices for ordinary rigs', () => {
+  expect(makeMeshIndices([0, 1, 587])).toBeInstanceOf(Uint16Array);
+});
+
+it('keeps 32-bit indices when a rig exceeds the 16-bit range', () => {
+  expect(makeMeshIndices([0, 65_536, 1])).toBeInstanceOf(Uint32Array);
 });

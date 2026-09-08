@@ -8,6 +8,16 @@ export type SkinRig = {
   textureSize?: { w: number; h: number } | [number, number];
 };
 
+export function makeMeshIndices(
+  triangles: readonly number[],
+): Uint16Array | Uint32Array {
+  const maxIndex = triangles.reduce((max, value) => Math.max(max, value), 0);
+  const minIndex = triangles.reduce((min, value) => Math.min(min, value), 0);
+  return minIndex >= 0 && maxIndex <= 0xffff
+    ? new Uint16Array(triangles)
+    : new Uint32Array(triangles);
+}
+
 /** Reconstructs UVs for canonical rigs that predate the optional mesh.uvs field. */
 export function uvsForVertices(vertices: readonly number[]): number[] {
   let minX = Infinity;
@@ -44,11 +54,13 @@ export class SkinnedMesh extends Mesh<MeshGeometry> {
     const uvs = new Float32Array(
       rig.mesh.uvs ?? uvsForVertices(rig.mesh.vertices),
     );
-    const indices = new Uint32Array(rig.mesh.triangles);
+    const indices = makeMeshIndices(rig.mesh.triangles);
+    // Pixi's v8 declaration narrows indices to Uint32Array, but WebGL supports
+    // Uint16Array and it is substantially faster on software/headless renderers.
     const geometry = new MeshGeometry({
       positions,
       uvs,
-      indices,
+      indices: indices as Uint32Array,
       shrinkBuffersToFit: false,
     });
     super({ geometry, texture });
