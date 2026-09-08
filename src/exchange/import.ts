@@ -437,7 +437,7 @@ async function unzipInWorker(
       event: MessageEvent<{
         entries?: Array<{ path: string; bytes: ArrayBuffer }>;
         progress?: { processedBytes: number; totalBytes: number };
-        error?: string;
+        error?: { path: string; message: string };
       }>,
     ) => {
       if (event.data.progress) {
@@ -449,7 +449,12 @@ async function unzipInWorker(
       }
       worker.terminate();
       if (event.data.error) {
-        reject(new BundleValidationError('bundle', event.data.error));
+        reject(
+          new BundleValidationError(
+            event.data.error.path,
+            event.data.error.message,
+          ),
+        );
         return;
       }
       resolve(

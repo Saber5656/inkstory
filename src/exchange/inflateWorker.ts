@@ -1,10 +1,11 @@
+import { BundleValidationError } from './bundleSchema';
 import { unzipStream } from './import';
 
 type WorkerRequest = { bytes: ArrayBuffer };
 type WorkerResponse =
   | { entries: Array<{ path: string; bytes: ArrayBuffer }> }
   | { progress: { processedBytes: number; totalBytes: number } }
-  | { error: string };
+  | { error: { path: string; message: string } };
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
   postMessage(message: WorkerResponse, transfer?: Transferable[]): void;
@@ -28,8 +29,20 @@ scope.onmessage = (event) => {
       );
     },
     (error: unknown) => {
+      if (error instanceof BundleValidationError) {
+        scope.postMessage({
+          error: {
+            path: error.path,
+            message: error.message.slice(error.path.length + 2),
+          },
+        });
+        return;
+      }
       scope.postMessage({
-        error: error instanceof Error ? error.message : 'inflate failed',
+        error: {
+          path: 'bundle',
+          message: error instanceof Error ? error.message : 'inflate failed',
+        },
       });
     },
   );
