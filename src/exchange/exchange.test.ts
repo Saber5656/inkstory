@@ -170,6 +170,13 @@ describe('inkstory exchange', () => {
       globalThis,
       'OffscreenCanvas',
     );
+    const metadataPng = new Uint8Array(PNG_1X1.length + 13);
+    metadataPng.set(PNG_1X1.slice(0, -12));
+    metadataPng.set(
+      [0, 0, 0, 1, 0x65, 0x58, 0x49, 0x66, 0, 0, 0, 0, 0],
+      PNG_1X1.length - 12,
+    );
+    metadataPng.set(PNG_1X1.slice(-12), PNG_1X1.length + 1);
     class FakeCanvas {
       width = 1;
       height = 1;
@@ -177,7 +184,9 @@ describe('inkstory exchange', () => {
         return { drawImage: () => undefined };
       }
       convertToBlob() {
-        return Promise.resolve(new NodeBlob([PNG_1X1], { type: 'image/png' }));
+        return Promise.resolve(
+          new NodeBlob([metadataPng], { type: 'image/png' }),
+        );
       }
     }
     Object.defineProperty(globalThis, 'createImageBitmap', {

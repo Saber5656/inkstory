@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { Blob as NodeBlob } from 'node:buffer';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CharacterInUseError,
@@ -20,8 +20,13 @@ const id = (n: number) =>
   `00000000-0000-4000-8000-${n.toString().padStart(12, '0')}`;
 
 beforeEach(async () => {
+  vi.stubGlobal('Blob', NodeBlob);
   await inkstoryDb.delete();
   await inkstoryDb.open();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('storage repositories', () => {
@@ -30,6 +35,15 @@ describe('storage repositories', () => {
     const blobId = await blobsRepo.put(
       'image/png',
       new NodeBlob(['x'], { type: 'image/png' }),
+    );
+    const persisted = await inkstoryDb.blobs.get(blobId);
+    expect(Object.prototype.toString.call(persisted?.data)).toBe(
+      '[object ArrayBuffer]',
+    );
+    const loaded = await blobsRepo.get(blobId);
+    expect(loaded?.data).toBeInstanceOf(NodeBlob);
+    expect(new Uint8Array(await loaded!.data.arrayBuffer())).toEqual(
+      new Uint8Array(await new NodeBlob(['x']).arrayBuffer()),
     );
     await drawingsRepo.put({
       id: drawingId,
@@ -202,5 +216,18 @@ describe('storage repositories', () => {
     expect(listener).toHaveBeenCalledTimes(1);
     vi.spyOn(inkstoryDb.settings, 'put').mockImplementation(originalPut);
     storageEvents.removeEventListener('storage-full', listener);
+  });
+
+  it('rejects malformed persisted blob bytes instead of treating objects as Blobs', async () => {
+    await inkstoryDb.blobs.put({
+      id: id(31),
+      mime: 'image/png',
+      data: { size: 1, type: 'image/png' },
+      size: 1,
+      createdAt: 1,
+    } as never);
+    await expect(blobsRepo.get(id(31))).rejects.toBeInstanceOf(
+      StorageCorruptionError,
+    );
   });
 });

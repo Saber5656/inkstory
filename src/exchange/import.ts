@@ -16,6 +16,7 @@ import type {
   Page,
 } from '../domain/types';
 import { db, withQuotaHandling } from '../storage';
+import { encodeBlobRecord } from '../storage/blobPersistence';
 import {
   BUNDLE_PATH_RE,
   BundleManifestSchema,
@@ -401,27 +402,68 @@ async function reencodeImage(
     const encoded = await canvas.convertToBlob({
       type: 'image/png',
     });
-    return new Uint8Array(await encoded.arrayBuffer());
+    return stripPngMetadata(new Uint8Array(await encoded.arrayBuffer()), path);
   }
-  return new Uint8Array(
-    await new Promise<ArrayBuffer>((resolve, reject) =>
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error('canvas encoding failed'));
-          return;
-        }
-        void blob
-          .arrayBuffer()
-          .then(resolve, (error) =>
-            reject(
-              error instanceof Error
-                ? error
-                : new Error('canvas encoding failed'),
-            ),
-          );
-      }, 'image/png'),
-    ),
+  const encoded = await new Promise<ArrayBuffer>((resolve, reject) =>
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('canvas encoding failed'));
+        return;
+      }
+      void blob
+        .arrayBuffer()
+        .then(resolve, (error) =>
+          reject(
+            error instanceof Error
+              ? error
+              : new Error('canvas encoding failed'),
+          ),
+        );
+    }, 'image/png'),
   );
+  return stripPngMetadata(new Uint8Array(encoded), path);
+}
+
+function stripPngMetadata(bytes: Uint8Array, path: string): Uint8Array {
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (
+    bytes.length < signature.length ||
+    signature.some((value, index) => bytes[index] !== value)
+  )
+    fail(path, 'encoded image is not a PNG');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const chunks: Uint8Array[] = [bytes.slice(0, signature.length)];
+  let offset = signature.length;
+  let ended = false;
+  while (offset < bytes.length) {
+    if (offset + 12 > bytes.length) fail(path, 'encoded PNG is truncated');
+    const length = view.getUint32(offset);
+    const end = offset + 12 + length;
+    if (end > bytes.length) fail(path, 'encoded PNG chunk exceeds bounds');
+    const type = new TextDecoder().decode(bytes.slice(offset + 4, offset + 8));
+    if (
+      type === 'IHDR' ||
+      type === 'PLTE' ||
+      type === 'IDAT' ||
+      type === 'IEND'
+    )
+      chunks.push(bytes.slice(offset, end));
+    offset = end;
+    if (type === 'IEND') {
+      ended = true;
+      break;
+    }
+  }
+  if (!ended) fail(path, 'encoded PNG is missing IEND');
+  const output = new Uint8Array(
+    chunks.reduce((sum, chunk) => sum + chunk.length, 0),
+  );
+  let outputOffset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, outputOffset);
+    outputOffset += chunk.length;
+  }
+  return output;
 }
 
 async function unzipInWorker(
@@ -724,13 +766,15 @@ export async function commitImport(
   prepared: PreparedImport,
 ): Promise<ImportResult> {
   if (prepared.committed) throw new Error('Import has already been committed');
+  const persistedBlobs = await Promise.all(
+    prepared.blobs.map(encodeBlobRecord),
+  );
   await withQuotaHandling(() =>
     db.transaction(
       'rw',
       [db.blobs, db.drawings, db.characters, db.books, db.pages],
       async () => {
-        for (const blob of prepared.blobs)
-          await db.blobs.put(BlobRecordSchema.parse(blob));
+        for (const blob of persistedBlobs) await db.blobs.put(blob);
         for (const drawing of prepared.drawings)
           await db.drawings.put(DrawingSchema.parse(drawing));
         for (const character of prepared.characters)

@@ -1,4 +1,5 @@
 export * from './db';
+export * from './blobPersistence';
 export * from './errors';
 export * from './gc';
 export * from './quota';

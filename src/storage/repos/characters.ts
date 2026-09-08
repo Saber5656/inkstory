@@ -9,6 +9,7 @@ import { newId } from '../../domain/ids';
 import type { BlobRecord, Character, Drawing } from '../../domain/types';
 import { parseOrThrow } from '../../domain/parse';
 import { db } from '../db';
+import { encodeBlobRecord } from '../blobPersistence';
 import { gc } from '../gc';
 import { CharacterInUseError, StorageCorruptionError } from '../errors';
 import { requestPersistence, withQuotaHandling } from '../quota';
@@ -51,9 +52,10 @@ export const charactersRepo = {
     const blobs = (input.blobs ?? []).map((blob) =>
       parseOrThrow(BlobRecordSchema, blob, 'blob'),
     );
+    const persistedBlobs = await Promise.all(blobs.map(encodeBlobRecord));
     await withQuotaHandling(() =>
       db.transaction('rw', [db.blobs, db.drawings, db.characters], async () => {
-        for (const blob of blobs) await db.blobs.put(blob);
+        for (const blob of persistedBlobs) await db.blobs.put(blob);
         await db.drawings.put(drawing);
         await db.characters.put(character);
       }),

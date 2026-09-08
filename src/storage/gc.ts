@@ -6,6 +6,7 @@ import {
   PageSchema,
 } from '../domain/schemas';
 import { db } from './db';
+import { decodeBlobRecord } from './blobPersistence';
 import { StorageCorruptionError } from './errors';
 import { withQuotaHandling } from './quota';
 
@@ -54,7 +55,7 @@ async function sweepInTransaction(): Promise<string[]> {
   for (const row of await db.blobs.toArray()) {
     const blob = parseStored<{ id: string }>(
       BlobRecordSchema,
-      row,
+      decodeBlobRecord(row),
       'blob',
       row.id,
     );

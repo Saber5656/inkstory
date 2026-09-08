@@ -1,20 +1,20 @@
 import Dexie, { type Table } from 'dexie';
 
 import type {
-  BlobRecord,
   Book,
   Character,
   Drawing,
   Page,
   Settings,
 } from '../domain/types';
+import type { PersistedBlobRecord } from './blobPersistence';
 
 /**
  * IndexedDB migration policy: add a new `version(n).stores(...).upgrade(...)`
  * for additive changes. Existing schemaVersion fields are never mutated in place.
  */
 export class InkstoryDatabase extends Dexie {
-  blobs!: Table<BlobRecord, string>;
+  blobs!: Table<PersistedBlobRecord, string>;
   drawings!: Table<Drawing, string>;
   characters!: Table<Character, string>;
   books!: Table<Book, string>;
