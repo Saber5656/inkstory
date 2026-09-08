@@ -106,6 +106,7 @@ export function AnimatedStage({
   const actorRef = useRef<CharacterActor | null>(null);
   const backdropRef = useRef<Container | null>(null);
   const motionRequestRef = useRef(0);
+  const ariaLabelRef = useRef(ariaLabel);
   const initialBackgroundRef = useRef(backgroundId);
   const backgroundIdRef = useRef(backgroundId);
   const [systemReducedMotion, setSystemReducedMotion] = useState(
@@ -124,6 +125,9 @@ export function AnimatedStage({
   });
 
   useEffect(() => subscribeReducedMotion(setSystemReducedMotion), []);
+  useEffect(() => {
+    ariaLabelRef.current = ariaLabel;
+  }, [ariaLabel]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -131,6 +135,7 @@ export function AnimatedStage({
     let disposed = false;
     let appDestroyed = false;
     let actorDestroyed = false;
+    let fallbackImage: HTMLImageElement | undefined;
     let unregisterRenderer: (() => void) | undefined;
     let observer: ResizeObserver | undefined;
     const app = new Application();
@@ -146,11 +151,15 @@ export function AnimatedStage({
     if (typeof Image !== 'undefined' && character.textureUrl)
       void loadCharacterTexture(asset(character.textureUrl)).then(
         (texture) => {
-          if (!disposed && actorRef.current === actor)
+          const ownsTexture = isInlineCharacterTexture(
+            asset(character.textureUrl),
+          );
+          if (!disposed && actorRef.current === actor && !actor.destroyed)
             actor.setTexture(
               texture,
-              isInlineCharacterTexture(asset(character.textureUrl)),
+              ownsTexture,
             );
+          else if (ownsTexture && !texture.destroyed) texture.destroy(true);
         },
         () => undefined,
       );
@@ -158,16 +167,25 @@ export function AnimatedStage({
       if (!disposed) actor.tick(ticker.deltaMS);
     };
     const destroyApp = (): void => {
-      if (!appDestroyed && app.renderer) {
+      if (!appDestroyed) {
         appDestroyed = true;
         unregisterRenderer?.();
         unregisterRenderer = undefined;
         observer?.disconnect();
-        app.ticker.remove(tick);
-        app.destroy(
-          { removeView: true },
-          { children: true, texture: false, textureSource: false },
-        );
+        try {
+          app.ticker?.remove(tick);
+        } catch {
+          // Ticker can be unavailable when Application.init rejects midway.
+        }
+        try {
+          if (app.renderer)
+            app.destroy(
+              { removeView: true },
+              { children: true, texture: false, textureSource: false },
+            );
+        } catch {
+          // Keep actor cleanup best effort for partial renderer initialization.
+        }
       }
       if (!actorDestroyed && !actor.destroyed) {
         actorDestroyed = true;
@@ -178,10 +196,11 @@ export function AnimatedStage({
       if (disposed || !character.textureUrl) return;
       const image = document.createElement('img');
       image.className = 'animated-stage-fallback';
-      image.alt = ariaLabel;
+      image.alt = ariaLabelRef.current;
       image.decoding = 'async';
       image.src = asset(character.textureUrl);
       host.appendChild(image);
+      fallbackImage = image;
     };
     void app
       .init({ resizeTo: host, antialias: true, background: '#f7f1e3' })
@@ -233,19 +252,22 @@ export function AnimatedStage({
       })
       .catch(() => {
         if (!disposed) showFallback();
+        if (actorRef.current === actor) actorRef.current = null;
         destroyApp();
       });
     return () => {
       disposed = true;
       actorRef.current = null;
       motionRequestRef.current += 1;
+      fallbackImage?.remove();
+      fallbackImage = undefined;
       if (import.meta.env.DEV)
         delete (window as Window & { __inkstoryActor?: CharacterActor })
           .__inkstoryActor;
       backdropRef.current = null;
       destroyApp();
     };
-  }, [ariaLabel, character]);
+  }, [character]);
 
   useEffect(() => {
     const actor = actorRef.current;
