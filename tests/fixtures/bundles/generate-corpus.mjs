@@ -2,6 +2,7 @@
  * Every case keeps manifest.json first so failures exercise the intended guard.
  */
 import { mkdir, writeFile } from 'node:fs/promises';
+import { deflateSync } from 'node:zlib';
 import { strToU8, zipSync } from 'fflate';
 
 const out = new URL('.', import.meta.url);
@@ -21,13 +22,48 @@ const archive = (entries) =>
   );
 const put = async (name, bytes) => writeFile(new URL(name, out), bytes);
 
+const crc32 = (bytes) => {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1)
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+};
+const chunk = (type, data) => {
+  const typeBytes = new TextEncoder().encode(type);
+  const result = new Uint8Array(12 + data.length);
+  const view = new DataView(result.buffer);
+  view.setUint32(0, data.length);
+  result.set(typeBytes, 4);
+  result.set(data, 8);
+  view.setUint32(8 + data.length, crc32(result.subarray(4, 8 + data.length)));
+  return result;
+};
 const png = (width = 1, height = 1) => {
-  const bytes = new Uint8Array(24);
-  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  bytes.set([0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52], 8);
-  new DataView(bytes.buffer).setUint32(16, width);
-  new DataView(bytes.buffer).setUint32(20, height);
-  return bytes;
+  const header = new Uint8Array(13);
+  const headerView = new DataView(header.buffer);
+  headerView.setUint32(0, width);
+  headerView.setUint32(4, height);
+  header[8] = 8;
+  header[9] = 6;
+  const pixels = new Uint8Array(height * (width * 4 + 1));
+  const bytes = [
+    Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(pixels)),
+    chunk('IEND', new Uint8Array()),
+  ];
+  const result = new Uint8Array(
+    bytes.reduce((sum, value) => sum + value.length, 0),
+  );
+  let offset = 0;
+  for (const value of bytes) {
+    result.set(value, offset);
+    offset += value.length;
+  }
+  return result;
 };
 const character = (characterId, extra = {}) => ({
   id: characterId,
