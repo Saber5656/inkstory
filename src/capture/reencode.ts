@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion -- DOM and Worker compiler overloads differ; explicit 2D context narrows the combined build. */
 export interface ReencodedImage {
   bitmap: ImageBitmap;
   width: number;
@@ -21,7 +22,8 @@ export class ImageInputError extends Error {
 
 /** Decode with EXIF orientation applied, downscale, and discard the source container. */
 export async function reencode(blob: Blob): Promise<ReencodedImage> {
-  if (blob.size > MAX_BYTES) throw new ImageInputError('capture.errors.tooLarge');
+  if (blob.size > MAX_BYTES)
+    throw new ImageInputError('capture.errors.tooLarge');
   if (!blob.type.startsWith('image/')) {
     throw new ImageInputError('capture.errors.notImage');
   }
@@ -40,11 +42,15 @@ export async function reencode(blob: Blob): Promise<ReencodedImage> {
     throw new ImageInputError('capture.errors.dimensionsTooLarge');
   }
 
-  const scale = Math.min(1, MAX_OUTPUT_EDGE / Math.max(source.width, source.height));
+  const scale = Math.min(
+    1,
+    MAX_OUTPUT_EDGE / Math.max(source.width, source.height),
+  );
   const width = Math.max(1, Math.round(source.width * scale));
   const height = Math.max(1, Math.round(source.height * scale));
   const canvas = createCanvas(width, height);
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext('2d') as
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   if (!context) {
     source.close();
     throw new ImageInputError('capture.errors.decodeFailed');
@@ -52,14 +58,19 @@ export async function reencode(blob: Blob): Promise<ReencodedImage> {
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, 0, 0, width, height);
-  const png = await canvasToBlob(canvas, 'image/png');
+  const encoded = await canvasToBlob(canvas, 'image/png');
+  const png = await stripPngMetadata(encoded);
   source.close();
   const bitmap = await createImageBitmap(png, { imageOrientation: 'none' });
   return { bitmap, width, height, png };
 }
 
-function createCanvas(width: number, height: number): HTMLCanvasElement | OffscreenCanvas {
-  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+function createCanvas(
+  width: number,
+  height: number,
+): HTMLCanvasElement | OffscreenCanvas {
+  if (typeof OffscreenCanvas !== 'undefined')
+    return new OffscreenCanvas(width, height);
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -75,10 +86,64 @@ function canvasToBlob(
 ): Promise<Blob> {
   if (isOffscreenCanvas(canvas)) return canvas.convertToBlob({ type });
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encoding failed'))), type);
+    canvas.toBlob(
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error('PNG encoding failed')),
+      type,
+    );
   });
 }
 
-function isOffscreenCanvas(canvas: HTMLCanvasElement | OffscreenCanvas): canvas is OffscreenCanvas {
-  return typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas;
+/** Keep PNG pixel chunks only so browser encoders cannot retain EXIF/GPS data. */
+async function stripPngMetadata(blob: Blob): Promise<Blob> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (
+    bytes.length < signature.length ||
+    signature.some((value, index) => bytes[index] !== value)
+  )
+    throw new ImageInputError('capture.errors.decodeFailed');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const chunks: Uint8Array[] = [bytes.slice(0, signature.length)];
+  let offset = signature.length;
+  let ended = false;
+  while (offset < bytes.length) {
+    if (offset + 12 > bytes.length)
+      throw new ImageInputError('capture.errors.decodeFailed');
+    const length = view.getUint32(offset);
+    const end = offset + 12 + length;
+    if (end > bytes.length)
+      throw new ImageInputError('capture.errors.decodeFailed');
+    const type = new TextDecoder().decode(bytes.slice(offset + 4, offset + 8));
+    if (
+      type === 'IHDR' ||
+      type === 'PLTE' ||
+      type === 'IDAT' ||
+      type === 'IEND'
+    )
+      chunks.push(bytes.slice(offset, end));
+    offset = end;
+    if (type === 'IEND') {
+      ended = true;
+      break;
+    }
+  }
+  if (!ended) throw new ImageInputError('capture.errors.decodeFailed');
+  const output = new Uint8Array(
+    chunks.reduce((sum, chunk) => sum + chunk.length, 0),
+  );
+  let outputOffset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, outputOffset);
+    outputOffset += chunk.length;
+  }
+  return new Blob([output as unknown as BlobPart], { type: 'image/png' });
+}
+
+function isOffscreenCanvas(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+): canvas is OffscreenCanvas {
+  return (
+    typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas
+  );
 }
