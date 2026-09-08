@@ -1,12 +1,12 @@
 [
   { "id": "idle_breathe", "file": "/motions/idle_breathe.json", "category": "idle", "sha256": "47fc7f4366f1e3f23c4dc1b8221d23a9f8d20fcacf4263324e004affcbcc4725" },
-  { "id": "wave", "file": "/motions/wave.json", "category": "greeting", "sha256": "6b4dade074785533f1c0bde1911360e3a1da5479a571574c3a82d53301ac7b3f" },
-  { "id": "walk", "file": "/motions/walk.json", "category": "locomotion", "sha256": "13dbb11da473264e53023e68ad093d06f32274bb5a76ac6b2ee4794bd7298d49" },
-  { "id": "run", "file": "/motions/run.json", "category": "locomotion", "sha256": "114a628ae0aa2470751e655a5aabc05d72be5eb10cedca834b538e36178e1bec" },
-  { "id": "jump", "file": "/motions/jump.json", "category": "action", "sha256": "cd63bde02bb4d0f29b14445a52d239ae1fc49e4700a8891994d27f2870d87ac9" },
+  { "id": "wave", "file": "/motions/wave.json", "category": "greeting", "sha256": "2f0930ca846d9757304800d52ca9832f4e2f8fe91a436c0c23b03120bc28fcd9" },
+  { "id": "walk", "file": "/motions/walk.json", "category": "locomotion", "sha256": "7af4208b7995094bcb05414c192a8d46aba5101786a4093f11582e16f779df0a" },
+  { "id": "run", "file": "/motions/run.json", "category": "locomotion", "sha256": "5c7318e47d5b8162bff087bf70b4e065deacdc499cbf447e0081f38873c6efbb" },
+  { "id": "jump", "file": "/motions/jump.json", "category": "action", "sha256": "1dc399134d3bc1bcd16717a07025f20e9178f455522ac33b57b8cec8f490289b" },
   { "id": "dance_1", "file": "/motions/dance_1.json", "category": "dance", "sha256": "88dc8d0a4f2c45083ade52077aae73a43f87253869b8024932da081d8d42c49a" },
   { "id": "dance_2", "file": "/motions/dance_2.json", "category": "dance", "sha256": "469792712d768032624b8f18b1079e42e025b144efd5dd5e0791155f289aa74d" },
-  { "id": "spin", "file": "/motions/spin.json", "category": "action", "sha256": "817b55566accf4ad0ccd5b4f552d8e5469296aa5b5146acc3f94c83965c11364" },
+  { "id": "spin", "file": "/motions/spin.json", "category": "action", "sha256": "ebbe801b00d4d27827ff8684749a51e6e74b07052625298a6705c127f2509b54" },
   { "id": "sit_down", "file": "/motions/sit_down.json", "category": "action", "sha256": "b8f7720b43b18bed91dfb3c6f0b8d027f5b95e83d0391e37314904b6bb8b2afb" },
-  { "id": "cheer", "file": "/motions/cheer.json", "category": "emotion", "sha256": "180c4184bf82faf88605eb5aa19ae77b4bb08d697986708e139315a438c6ddc2" }
+  { "id": "cheer", "file": "/motions/cheer.json", "category": "emotion", "sha256": "821cf94ba73ebbf513d7c1de515ce7d138699428dd457f294f27404667791555" }
 ]
