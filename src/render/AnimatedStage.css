@@ -5,3 +5,10 @@
   overflow: hidden;
   contain: strict;
 }
+
+.animated-stage-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

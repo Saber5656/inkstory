@@ -7,7 +7,8 @@ export type CharacterTextureLoaderOptions = {
   loadAssets?: (url: string) => Promise<Texture>;
 };
 
-const isInlineImage = (url: string): boolean => /^(blob:|data:)/.test(url);
+export const isInlineCharacterTexture = (url: string): boolean =>
+  /^(blob:|data:)/.test(url);
 
 async function decodeImage(image: ImageResource): Promise<void> {
   if (typeof image.decode === 'function') {
@@ -28,7 +29,7 @@ export async function loadCharacterTexture(
 ): Promise<Texture> {
   const loadAssets =
     options.loadAssets ?? ((source) => Assets.load<Texture>(source));
-  if (!isInlineImage(url)) return loadAssets(url);
+  if (!isInlineCharacterTexture(url)) return loadAssets(url);
   const image = (options.createImage ?? (() => new Image()))();
   image.src = url;
   await decodeImage(image);

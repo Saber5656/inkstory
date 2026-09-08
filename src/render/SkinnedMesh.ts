@@ -1,4 +1,5 @@
 import { Mesh, MeshGeometry, Texture } from 'pixi.js';
+import type { DestroyOptions } from 'pixi.js';
 import type { Affine2D } from '../motion/fk';
 
 export type Influence = { boneIndex: number; w: number };
@@ -67,6 +68,12 @@ export class SkinnedMesh extends Mesh<MeshGeometry> {
     this.restVertices = new Float32Array(positions);
     this.skinnedVertices = new Float32Array(positions.length);
     this.influences = rig.weights;
+  }
+
+  override destroy(options?: DestroyOptions): void {
+    const geometry = this.geometry;
+    super.destroy(options);
+    geometry.destroy(true);
   }
 
   updateSkin(matrices: readonly Affine2D[]): void {

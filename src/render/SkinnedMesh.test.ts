@@ -33,3 +33,16 @@ it('uses 16-bit indices for ordinary rigs', () => {
 it('keeps 32-bit indices when a rig exceeds the 16-bit range', () => {
   expect(makeMeshIndices([0, 65_536, 1])).toBeInstanceOf(Uint32Array);
 });
+
+it('destroys mesh geometry buffers with the mesh', () => {
+  const mesh = new SkinnedMesh(
+    {
+      mesh: { vertices: [0, 0, 1, 0], triangles: [0, 1, 1], uvs: [0, 0, 1, 1] },
+      weights: [[{ boneIndex: 0, w: 1 }], [{ boneIndex: 0, w: 1 }]],
+    },
+    Texture.WHITE,
+  );
+  const buffers = [...mesh.geometry.buffers];
+  mesh.destroy({ children: true });
+  expect(buffers.every((buffer) => buffer.destroyed)).toBe(true);
+});

@@ -1,4 +1,5 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import type { DestroyOptions } from 'pixi.js';
 import {
   BONE_IDS,
   MotionPlayer,
@@ -84,6 +85,7 @@ export class CharacterActor extends Container {
   private stageY = 0;
   private reducedMotion: boolean;
   private elapsedMs = 0;
+  private ownedTexture: Texture | null = null;
 
   constructor(options: CharacterActorOptions) {
     super();
@@ -113,6 +115,7 @@ export class CharacterActor extends Container {
       this.sprite.anchor.set(0.5, 0.5);
       this.addChild(this.sprite);
     }
+    this.visible = Boolean(options.textureUrl);
     if (options.playing) this.player.play();
     const particleLayer = new Container();
     for (let index = 0; index < 120; index += 1) {
@@ -135,7 +138,12 @@ export class CharacterActor extends Container {
   setMotionClip(clip: MotionClip): void {
     this.player.setClip(clip);
   }
-  setTexture(texture: Texture): void {
+  setTexture(texture: Texture, owned = false): void {
+    if (this.ownedTexture && this.ownedTexture !== texture) {
+      this.ownedTexture.destroy(true);
+    }
+    this.ownedTexture = owned ? texture : null;
+    this.visible = true;
     if (this.mesh) this.mesh.texture = texture;
     if (this.sprite) {
       this.sprite.texture = texture;
@@ -179,6 +187,13 @@ export class CharacterActor extends Container {
   }
   pause(): void {
     this.player.pause();
+  }
+
+  override destroy(options?: DestroyOptions): void {
+    const ownedTexture = this.ownedTexture;
+    this.ownedTexture = null;
+    super.destroy(options ?? { children: true });
+    if (ownedTexture && !ownedTexture.destroyed) ownedTexture.destroy(true);
   }
 
   tick(dtMs: number): void {
