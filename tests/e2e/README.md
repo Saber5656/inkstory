@@ -21,6 +21,7 @@ This environment qualification is a departure from the original issue's assumpti
 
 ## Other explicit gaps
 
+- Linux WebKit builds without `MediaRecorder` explicitly mark the recording scenario `fixme`; a separate forced-unavailable test verifies that the explanation and text-story path work. macOS WebKit passes the recording scenario.
 - Synthetic Web Audio streams exercise real MediaRecorder encoding, IndexedDB persistence, reload playback, replacement, deletion, and track cleanup in both browsers. Physical microphone permission prompts, indicators, and actual recorded speech are not covered.
 - The 200 MiB import measurement is opt-in (`RUN_LARGE_IMPORT_PERF=1`); the ordinary CI corpus tests all checked-in malformed bundles.
 - The optional pose model is unavailable in the checked-in manifest. Golden paths exercise template joints; they do not claim real model inference.

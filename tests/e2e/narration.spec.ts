@@ -94,11 +94,7 @@ async function playPreview(page: Page): Promise<void> {
     .poll(() =>
       audio.evaluate((element) => {
         const player = element as HTMLAudioElement;
-        return (
-          !player.paused ||
-          player.currentTime > 0 ||
-          player.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-        );
+        return player.currentTime > 0;
       }),
     )
     .toBe(true);
@@ -216,6 +212,21 @@ test('records synthetic narration, persists preview, replaces it, and deletes it
     localStorage.setItem('inkstory.locale', 'en');
   });
   await createFreshBookPage(page);
+  const recorderAvailable = await page.evaluate(
+    () => typeof MediaRecorder !== 'undefined',
+  );
+  if (!recorderAvailable) {
+    await expect(
+      page.getByText(
+        'Recording is unavailable in this browser. You can still enjoy text stories.',
+      ),
+    ).toBeVisible();
+    expect(await currentNarration(page)).toEqual({});
+  }
+  test.fixme(
+    !recorderAvailable,
+    'This browser build has no MediaRecorder; the unsupported UI is verified separately. macOS WebKit recording is tested locally.',
+  );
 
   await recordSyntheticNarration(page);
   expect(await allSyntheticTracksEnded(page)).toBe(true);
@@ -270,4 +281,33 @@ test('records synthetic narration, persists preview, replaces it, and deletes it
   if (probe.trackStopObservationAvailable)
     expect(probe.stoppedTracks).toBeGreaterThan(0);
   test.info().annotations.push({ type: 'browser', description: browserName });
+});
+
+test('explains unavailable recording without blocking text stories', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('inkstory.locale', 'en');
+    Object.defineProperty(window, 'MediaRecorder', {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await createFreshBookPage(page);
+  await expect(
+    page.getByText(
+      'Recording is unavailable in this browser. You can still enjoy text stories.',
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Record your voice|Record again/ }),
+  ).toHaveCount(0);
+  await page
+    .getByRole('textbox', { name: 'Story text' })
+    .fill('A story without a recording');
+  await page.getByRole('button', { name: 'Read story' }).click();
+  await expect(page).toHaveURL(/\/play$/);
+  await expect(page.locator('.player .story-panel')).toHaveText(
+    'A story without a recording',
+  );
 });
