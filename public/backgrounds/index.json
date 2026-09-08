@@ -1,0 +1,14 @@
+[
+  { "id": "meadow", "file": "/backgrounds/meadow.svg" },
+  { "id": "forest", "file": "/backgrounds/forest.svg" },
+  { "id": "night", "file": "/backgrounds/night.svg" },
+  { "id": "ocean", "file": "/backgrounds/ocean.svg" },
+  { "id": "sky", "file": "/backgrounds/sky.svg" },
+  { "id": "space", "file": "/backgrounds/space.svg" },
+  { "id": "city", "file": "/backgrounds/city.svg" },
+  { "id": "rainbow", "file": "/backgrounds/rainbow.svg" },
+  { "id": "plain_cream", "color": "#fff7e6" },
+  { "id": "plain_blue", "color": "#e0f2fe" },
+  { "id": "plain_pink", "color": "#fce7f3" },
+  { "id": "plain_lilac", "color": "#ede9fe" }
+]

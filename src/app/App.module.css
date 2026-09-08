@@ -1,0 +1,19 @@
+.shell {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.shell h1 {
+  margin: 0;
+  color: #7c3aed;
+  font-size: clamp(2.5rem, 12vw, 5rem);
+  letter-spacing: -0.04em;
+}
+
+.shell p {
+  margin: 0.75rem 0 0;
+  color: #475569;
+}

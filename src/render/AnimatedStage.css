@@ -1,0 +1,14 @@
+.animated-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  contain: strict;
+}
+
+.animated-stage-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

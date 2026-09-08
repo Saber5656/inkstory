@@ -1,0 +1,42 @@
+{
+  "width": 160,
+  "height": 192,
+  "fixtures": [
+    {
+      "id": "humanoid-pencil-faint",
+      "kind": "humanoid",
+      "style": "faint",
+      "seed": 11
+    },
+    {
+      "id": "humanoid-colored",
+      "kind": "humanoid",
+      "style": "colored",
+      "seed": 23
+    },
+    {
+      "id": "humanoid-shadow",
+      "kind": "humanoid",
+      "style": "shadow",
+      "seed": 37
+    },
+    {
+      "id": "humanoid-nonideal",
+      "kind": "humanoid",
+      "style": "nonideal",
+      "seed": 47
+    },
+    {
+      "id": "nonhumanoid-cat",
+      "kind": "cat",
+      "style": "colored",
+      "seed": 59
+    },
+    {
+      "id": "nonhumanoid-rocket",
+      "kind": "rocket",
+      "style": "colored",
+      "seed": 71
+    }
+  ]
+}
