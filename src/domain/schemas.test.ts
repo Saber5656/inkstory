@@ -106,6 +106,18 @@ describe('domain schemas', () => {
         mesh: { ...rig().mesh, triangles: [0, 1, 0.5] },
       }),
     ).toThrow();
+    expect(
+      CharacterRigSchema.parse({
+        ...rig(),
+        mesh: { ...rig().mesh, uvs: [0, 0, 1, 1] },
+      }).mesh.uvs,
+    ).toEqual([0, 0, 1, 1]);
+    expect(() =>
+      CharacterRigSchema.parse({
+        ...rig(),
+        mesh: { ...rig().mesh, uvs: [0, 0] },
+      }),
+    ).toThrow(/uvs length/);
   });
 
   it('validates all entity boundaries, including Blob and bundle manifest', () => {

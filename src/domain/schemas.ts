@@ -82,6 +82,7 @@ export const CharacterRigSchema = z
       .object({
         vertices: z.array(finiteNumber).max(6000),
         triangles: z.array(z.number().int().nonnegative()).max(18000),
+        uvs: z.array(finiteNumber.min(0).max(1)).max(6000).optional(),
       })
       .strict(),
     weights: z
@@ -123,6 +124,12 @@ export const CharacterRigSchema = z
         message: 'triangles must contain triples',
       });
     const vertexCount = Math.floor(rig.mesh.vertices.length / 2);
+    if (rig.mesh.uvs && rig.mesh.uvs.length !== rig.mesh.vertices.length)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mesh', 'uvs'],
+        message: 'uvs length must equal vertices length',
+      });
     rig.mesh.triangles.forEach((index, i) => {
       if (index >= vertexCount)
         ctx.addIssue({
