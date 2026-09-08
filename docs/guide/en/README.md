@@ -37,4 +37,8 @@ The current exporter includes character metadata, rig JSON, texture and thumbnai
 
 ## Screenshots
 
-Screenshots of the sample flow will be added after a release-owner manual smoke run. The repository currently contains no verified device screenshots.
+Production-build desktop Chromium, 2026-09-08. The bundled sample is original artwork; physical-device checks remain separate.
+
+![Library with a sample character](../../screenshots/library-desktop.png)
+
+![Stage with motion and background controls](../../screenshots/stage-desktop.png)

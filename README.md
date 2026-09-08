@@ -2,7 +2,7 @@
 
 inkstory turns a child's paper drawing into a moving picture-book character. The MVP is a client-only web app: image processing, pose assistance, animation, books, and narration run in the browser, and the data is kept in the device's IndexedDB. There is no account, sync service, analytics, or cloud AI.
 
-> **Release status (2026-09-08):** the repository contains the MVP implementation. A hosted URL, production deployment, CI run, and manual device smoke test are still pending. Do not treat this checkout as a verified public release.
+> **Release status (2026-09-08):** the repository contains the MVP implementation. Implementation and validation are tracked in [PR #31](https://github.com/Saber5656/inkstory/pull/31). A hosted URL, production deployment, and physical-device smoke test remain pending. Do not treat this checkout as a verified public release.
 
 ## What you can do
 
@@ -54,9 +54,11 @@ Your drawings, photos, rig data, books, and narration stay on the device in this
 
 ## Screenshots
 
-Screenshots of the sample flow are intentionally left for the release owner to add after the manual smoke run. No screenshot in this repository is presented as a verified device result.
+Captured from the production build in desktop Chromium on 2026-09-08, using bundled original sample artwork. These are browser screenshots, not physical-device certification.
 
-<!-- Screenshot placeholders: library, capture/crop, mask editor, stage, book player. -->
+![Sample library](docs/screenshots/library-desktop.png)
+
+![Animated sample on the stage](docs/screenshots/stage-desktop.png)
 
 ## Credits and license
 
@@ -68,4 +70,4 @@ inkstory は、子どもの紙の絵を動く絵本のキャラクターにし�
 
 カメラまたは画像ファイルを取り込み、切り抜きと背景マスクを直し、16 関節の humanoid または cutout として保存できます。ステージでは動きを再生し、絵本では文章と任意のナレーションをページごとに設定できます。設定画面から `.inkstory` バックアップを作成・復元してください。
 
-ホスト URL、公開 deploy、CI、実機の手動確認はまだ完了していません。詳しい手順は[日本語ガイド](docs/guide/ja/README.md)、保存内容は[プライバシー声明](docs/privacy.md)を参照してください。
+実装と CI の状況は [PR #31](https://github.com/Saber5656/inkstory/pull/31) に記録しています。ホスト URL、公開 deploy、実機の手動確認はまだ完了していません。詳しい手順は[日本語ガイド](docs/guide/ja/README.md)、保存内容は[プライバシー声明](docs/privacy.md)を参照してください。

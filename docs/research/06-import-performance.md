@@ -35,13 +35,13 @@ Observed run:
 | JS heap before / after | 2,582,184 / 4,343,296 bytes |
 | JS heap delta | 1,761,112 bytes |
 
-Command used from this worktree while the already-running root integration server remained at 4173 (an ephemeral Playwright config in this worktree supplied the base URL; no file was added to the root worktree):
+Command used from this worktree while the already-running root integration server remained at 4173 (the checked-in Playwright config supplies the base URL):
 
 ```sh
 RUN_LARGE_IMPORT_PERF=1 \
 INKSTORY_LARGE_IMPORT_FIXTURE=/tmp/inkstory-200mb.inkstory \
 pnpm exec playwright test tests/e2e/large-import.spec.ts \
-  --config playwright.large-import.config.ts --project=chromium --workers=1
+  --project=chromium --workers=1
 ```
 
 Result: one Chromium test passed. The test treats a heartbeat gap under 2,000 ms and at least one progress event as the local responsiveness gate. The measured run was well below that gap, and the preview was reached without a main-thread stall visible to the probe.
