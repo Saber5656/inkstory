@@ -1,5 +1,12 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { BONE_IDS, MotionPlayer, type MotionClip } from '../motion';
+import {
+  BONE_IDS,
+  MotionPlayer,
+  calculateRest,
+  shortestArcDelta,
+  type BoneId,
+  type MotionClip,
+} from '../motion';
 import { forwardKinematics, type RestJoints } from '../motion/fk';
 import {
   EffectRuntime,
@@ -9,6 +16,21 @@ import {
 } from './effects/registry';
 import { SkinnedMesh, type SkinRig } from './SkinnedMesh';
 import { capMotionSpeed } from './reducedMotion';
+
+export function retargetMotionAngles(
+  clipRestAngles: Partial<Record<BoneId, number>>,
+  characterRestAngles: Partial<Record<BoneId, number>>,
+  motionAngles: Partial<Record<BoneId, number>>,
+): Record<BoneId, number> {
+  return Object.fromEntries(
+    BONE_IDS.map((bone) => {
+      const clipRest = clipRestAngles[bone] ?? 0;
+      const characterRest = characterRestAngles[bone] ?? clipRest;
+      const motion = motionAngles[bone] ?? clipRest;
+      return [bone, characterRest + shortestArcDelta(clipRest, motion)];
+    }),
+  ) as Record<BoneId, number>;
+}
 
 export type CharacterActorOptions = {
   textureUrl: string;
@@ -49,6 +71,7 @@ export class CharacterActor extends Container {
   private readonly mesh: SkinnedMesh | null;
   private readonly sprite: Sprite | null;
   private readonly rest: RestJoints;
+  private readonly restAngles: Record<BoneId, number>;
   private effectIds: EffectId[];
   private seed: number;
   private readonly effectRuntime = new EffectRuntime();
@@ -78,6 +101,7 @@ export class CharacterActor extends Container {
     this.effectIds = options.effectIds ?? [];
     this.seed = options.seed ?? 1;
     this.rest = options.rig?.joints ?? defaultRest;
+    this.restAngles = calculateRest(this.rest).restAngles;
     const texture = Texture.WHITE;
     if (options.rigType === 'humanoid' && options.rig) {
       this.mesh = new SkinnedMesh(options.rig, texture);
@@ -160,7 +184,12 @@ export class CharacterActor extends Container {
   tick(dtMs: number): void {
     this.elapsedMs += Math.max(0, dtMs);
     const sample = this.player.tick(dtMs);
-    const fk = forwardKinematics(this.rest, sample.angles, sample.rootT);
+    const angles = retargetMotionAngles(
+      this.player.currentClip.restAngles,
+      this.restAngles,
+      sample.angles,
+    );
+    const fk = forwardKinematics(this.rest, angles, sample.rootT);
     if (this.mesh) {
       const matrices = BONE_IDS.map((bone) => fk.matrices[bone]);
       this.mesh.updateSkin(matrices);

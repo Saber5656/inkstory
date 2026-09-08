@@ -10,6 +10,7 @@ import {
 } from 'pixi.js';
 import { loadMotionClip } from '../motion';
 import { CharacterActor, type CharacterActorOptions } from './CharacterActor';
+import { loadCharacterTexture } from './textureLoader';
 import type { EffectId } from './effects';
 import {
   getSystemReducedMotion,
@@ -137,7 +138,7 @@ export function AnimatedStage({
       Math.min(host.clientWidth || 320, host.clientHeight || 240) * 0.55,
     );
     if (typeof Image !== 'undefined' && character.textureUrl)
-      void Assets.load<Texture>(asset(character.textureUrl)).then(
+      void loadCharacterTexture(asset(character.textureUrl)).then(
         (texture) => {
           if (!disposed) actor.setTexture(texture);
         },

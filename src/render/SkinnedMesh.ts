@@ -52,7 +52,7 @@ export class SkinnedMesh extends Mesh<MeshGeometry> {
       shrinkBuffersToFit: false,
     });
     super({ geometry, texture });
-    this.restVertices = positions;
+    this.restVertices = new Float32Array(positions);
     this.skinnedVertices = new Float32Array(positions.length);
     this.influences = rig.weights;
   }
