@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { webcrypto } from 'node:crypto';
 
 import 'fake-indexeddb/auto';
 
@@ -22,3 +23,11 @@ Object.defineProperty(globalThis, 'localStorage', {
     },
   },
 });
+
+// Node 20's jsdom environment can expose crypto without SubtleCrypto. Keep the
+// production loader browser-only, while making the CI test runtime explicit.
+if (!globalThis.crypto?.subtle)
+  Object.defineProperty(globalThis, 'crypto', {
+    configurable: true,
+    value: webcrypto,
+  });
