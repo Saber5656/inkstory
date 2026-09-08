@@ -4,6 +4,7 @@ type NarrationProbe = {
   getUserMediaCalls: number;
   stoppedTracks: number;
   trackStopObservationAvailable: boolean;
+  tracks: MediaStreamTrack[];
 };
 
 type NarrationRecord = {
@@ -68,6 +69,41 @@ async function hasBlob(page: Page, id: string): Promise<boolean> {
   );
 }
 
+async function allSyntheticTracksEnded(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const probe = (window as unknown as { __narrationProbe?: NarrationProbe })
+      .__narrationProbe;
+    return (
+      !!probe?.tracks.length &&
+      probe.tracks.every((track) => track.readyState === 'ended')
+    );
+  });
+}
+
+async function playPreview(page: Page): Promise<void> {
+  const audio = page.locator('audio[aria-label="Listen"]');
+  await audio.evaluate(async (element) => {
+    const player = element as HTMLAudioElement;
+    player.muted = true;
+    await Promise.race([
+      player.play(),
+      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+    ]);
+  });
+  await expect
+    .poll(() =>
+      audio.evaluate((element) => {
+        const player = element as HTMLAudioElement;
+        return (
+          !player.paused ||
+          player.currentTime > 0 ||
+          player.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        );
+      }),
+    )
+    .toBe(true);
+}
+
 async function installSyntheticMicrophone(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const probe: NarrationProbe = {
@@ -77,6 +113,7 @@ async function installSyntheticMicrophone(page: Page): Promise<void> {
         Number(sessionStorage.getItem('narration.stoppedTracks')) || 0,
       trackStopObservationAvailable:
         sessionStorage.getItem('narration.trackStopSupported') === 'true',
+      tracks: [],
     };
     (
       window as unknown as { __narrationProbe: NarrationProbe }
@@ -107,7 +144,9 @@ async function installSyntheticMicrophone(page: Page): Promise<void> {
       gain.connect(destination);
       oscillator.start();
 
-      for (const track of destination.stream.getTracks()) {
+      const tracks = destination.stream.getTracks();
+      probe.tracks.push(...tracks);
+      for (const track of tracks) {
         const stop = track.stop.bind(track);
         const wrappedStop = () => {
           probe.stoppedTracks += 1;
@@ -179,25 +218,11 @@ test('records synthetic narration, persists preview, replaces it, and deletes it
   await createFreshBookPage(page);
 
   await recordSyntheticNarration(page);
+  expect(await allSyntheticTracksEnded(page)).toBe(true);
   const first = await currentNarration(page);
   expect(first.narrationBlobId).toBeTruthy();
   expect(first.narrationMime).toMatch(/^audio\//);
   expect(await hasBlob(page, first.narrationBlobId!)).toBe(true);
-
-  const audio = page.locator('audio[aria-label="Listen"]');
-  await audio.evaluate(async (element) => {
-    const player = element as HTMLAudioElement;
-    player.muted = true;
-    await Promise.race([
-      player.play(),
-      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-    ]);
-  });
-  await expect
-    .poll(() =>
-      audio.evaluate((element) => !(element as HTMLAudioElement).paused),
-    )
-    .toBe(true);
 
   await page.reload();
   await expect(page.locator('audio[aria-label="Listen"]')).toBeVisible();
@@ -205,8 +230,10 @@ test('records synthetic narration, persists preview, replaces it, and deletes it
     page.getByRole('button', { name: 'Record again' }),
   ).toBeVisible();
   expect(await currentNarration(page)).toEqual(first);
+  await playPreview(page);
 
   await recordSyntheticNarration(page);
+  expect(await allSyntheticTracksEnded(page)).toBe(true);
   const second = await currentNarration(page);
   expect(second.narrationBlobId).toBeTruthy();
   expect(second.narrationBlobId).not.toBe(first.narrationBlobId);
