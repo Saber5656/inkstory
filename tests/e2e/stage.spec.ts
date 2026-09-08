@@ -46,7 +46,7 @@ async function openSampleStage(page: import('@playwright/test').Page) {
 }
 
 for (const viewport of viewports) {
-  test(`renders all motion/background combinations at ${viewport.name}`, async ({
+  test(`renders each motion and background at ${viewport.name}`, async ({
     page,
   }, testInfo) => {
     test.setTimeout(180_000);
@@ -54,7 +54,6 @@ for (const viewport of viewports) {
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     const stage = await openSampleStage(page);
-    const canvas = stage.locator('canvas');
     const motionButtons = page
       .locator('.controls .pick-grid')
       .first()
@@ -63,32 +62,59 @@ for (const viewport of viewports) {
     await expect(motionButtons).toHaveCount(motions.length);
     await expect(background.locator('option')).toHaveCount(backgrounds.length);
 
-    for (let motionIndex = 0; motionIndex < motions.length; motionIndex += 1) {
-      await motionButtons.nth(motionIndex).click();
-      await expect(motionButtons.nth(motionIndex)).toHaveAttribute(
+    // Cover each clip and background on all viewports without repeating the
+    // entire Cartesian product. The plain background makes missing actors
+    // detectable by pixels, unlike a canvas-size or screenshot-size assertion.
+    const cases = [
+      ...motions.map((motion, index) => ({
+        motion,
+        index,
+        backgroundId: 'plain_cream',
+      })),
+      ...backgrounds
+        .filter((id) => id !== 'plain_cream')
+        .map((backgroundId) => ({ motion: 'wave', index: 1, backgroundId })),
+    ];
+    for (const { motion, index, backgroundId } of cases) {
+      await motionButtons.nth(index).click();
+      await expect(motionButtons.nth(index)).toHaveAttribute(
         'aria-pressed',
         'true',
       );
-      for (const backgroundId of backgrounds) {
-        await background.selectOption(backgroundId);
-        await page.waitForTimeout(80);
-        const screenshot = await stage.screenshot({
-          path: testInfo.outputPath(
-            `${viewport.name}-${motions[motionIndex]}-${backgroundId}.png`,
-          ),
-        });
-        expect(screenshot.byteLength).toBeGreaterThan(1_000);
-        const canvasInfo = await canvas.evaluate((element) => {
-          const target = element as HTMLCanvasElement;
-          return {
-            width: target.width,
-            height: target.height,
-            dataUrlLength: target.toDataURL('image/png').length,
-          };
-        });
-        expect(canvasInfo.width).toBeGreaterThan(0);
-        expect(canvasInfo.height).toBeGreaterThan(0);
-        expect(canvasInfo.dataUrlLength).toBeGreaterThan(100);
+      await background.selectOption(backgroundId);
+      await page.waitForTimeout(150);
+      const screenshot = await stage.screenshot({
+        path: testInfo.outputPath(
+          `${viewport.name}-${motion}-${backgroundId}.png`,
+        ),
+      });
+      expect(screenshot.byteLength).toBeGreaterThan(1_000);
+      if (backgroundId === 'plain_cream') {
+        const redPixels = await page.evaluate(async (encoded) => {
+          const image = new Image();
+          image.src = `data:image/png;base64,${encoded}`;
+          await image.decode();
+          const surface = document.createElement('canvas');
+          surface.width = image.width;
+          surface.height = image.height;
+          const context = surface.getContext('2d')!;
+          context.drawImage(image, 0, 0);
+          const { data } = context.getImageData(
+            0,
+            0,
+            surface.width,
+            surface.height,
+          );
+          let count = 0;
+          for (let i = 0; i < data.length; i += 4)
+            if (data[i]! > 130 && data[i + 1]! < 130 && data[i + 2]! < 130)
+              count++;
+          return count;
+        }, screenshot.toString('base64'));
+        expect(
+          redPixels,
+          `${motion}: sample red shirt must remain visible`,
+        ).toBeGreaterThan(50);
       }
     }
     expect(pageErrors).toEqual([]);

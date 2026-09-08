@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test, observeNetwork } from './privacyFixture';
 
 const fixtureDirectory = resolve(process.cwd(), 'tests/fixtures/bundles');
 const corpus = JSON.parse(
@@ -65,7 +66,7 @@ async function databaseCounts(page: Page): Promise<Record<string, number>> {
   );
 }
 
-test('export then import twice creates independent fresh copies', async ({
+test('privacy: export then import twice creates independent fresh copies', async ({
   browser,
   page,
 }, testInfo) => {
@@ -83,7 +84,14 @@ test('export then import twice creates independent fresh copies', async ({
   await download.saveAs(bundlePath);
   await expect.poll(() => download.suggestedFilename()).toMatch(/\.inkstory$/);
 
-  const importedContext = await browser.newContext();
+  const importedContext = await browser.newContext({
+    baseURL: 'http://127.0.0.1:4173',
+    serviceWorkers: testInfo.project.use.serviceWorkers,
+  });
+  const importedAudit = observeNetwork(
+    importedContext,
+    'http://127.0.0.1:4173',
+  );
   const imported = await importedContext.newPage();
   try {
     await imported.addInitScript(() => {
@@ -177,6 +185,8 @@ test('export then import twice creates independent fresh copies', async ({
     expect(newlyImportedIds).toHaveLength(firstIds.length);
   } finally {
     await importedContext.close();
+    importedAudit.stop();
+    importedAudit.assertClean();
   }
 });
 

@@ -50,7 +50,9 @@ export function createRendererFrameProbe(
       );
     }
     const elapsedMs = Math.max(1, now() - startedAt);
-    const frames = listeners.reduce((sum, value) => sum + value.frames, 0);
+    const frames = listeners.length
+      ? Math.min(...listeners.map((value) => value.frames))
+      : 0;
     return (frames * 1000) / elapsedMs;
   };
 }

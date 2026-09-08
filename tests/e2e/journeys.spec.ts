@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './privacyFixture';
 import AxeBuilder from '@axe-core/playwright';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(
@@ -37,7 +37,10 @@ test('privacy: sample book loads, animates, ends, and survives offline reload', 
   await expect(
     page.getByRole('heading', { name: '描いた世界が、うごきだす。' }),
   ).toBeVisible();
-  if (browserName === 'chromium') {
+  if (
+    browserName === 'chromium' &&
+    test.info().project.use.serviceWorkers !== 'block'
+  ) {
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
     });
@@ -52,7 +55,7 @@ test('privacy: sample book loads, animates, ends, and survives offline reload', 
     ).toBeVisible();
   }
 });
-test('manual drawing, corrections, stage, story suggestion and persisted book', async ({
+test('privacy: manual drawing, corrections, stage, story suggestion and persisted book', async ({
   page,
 }) => {
   await page.goto('/');

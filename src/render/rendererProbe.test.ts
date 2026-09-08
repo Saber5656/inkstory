@@ -31,4 +31,39 @@ describe('renderer performance probe', () => {
     await expect(probe()).resolves.toBe(3);
     expect(listeners).toHaveLength(0);
   });
+  it('reports the slowest active renderer instead of summing frame rates', async () => {
+    const listeners = [
+      new Set<{ postrender: () => void }>(),
+      new Set<{ postrender: () => void }>(),
+    ];
+    const renderers = listeners.map((set) => ({
+      runners: {
+        postrender: {
+          add: (listener: { postrender: () => void }) => set.add(listener),
+          remove: (listener: { postrender: () => void }) =>
+            set.delete(listener),
+        },
+      },
+    }));
+    let now = 0;
+    const probe = createRendererFrameProbe(() => renderers, {
+      now: () => now,
+      wait: () => {
+        listeners.forEach((set, index) => {
+          for (let frame = 0; frame < (index === 0 ? 60 : 30); frame++)
+            set.forEach((listener) => listener.postrender());
+        });
+        now = 1000;
+        return Promise.resolve();
+      },
+    });
+    await expect(probe()).resolves.toBe(30);
+    listeners.forEach((set) => expect(set.size).toBe(0));
+  });
+  it('reports zero when there is no active renderer', async () => {
+    const probe = createRendererFrameProbe(() => [], {
+      wait: () => Promise.resolve(),
+    });
+    await expect(probe()).resolves.toBe(0);
+  });
 });
