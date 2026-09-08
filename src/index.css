@@ -116,6 +116,13 @@ nav {
   gap: 26px;
   align-items: center;
 }
+nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+}
 main {
   max-width: 1230px;
   margin: auto;
@@ -490,7 +497,7 @@ dialog .actions {
 }
 .page-item .actions button {
   padding: 5px;
-  min-width: 42px;
+  min-width: 48px;
 }
 .page-view {
   position: relative;
