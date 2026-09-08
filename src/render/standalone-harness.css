@@ -1,3 +1,9 @@
-#stage-host { height: 360px; }
-#stage-host.stage-default { width: 480px; }
-#stage-host.stage-wide { width: 640px; }
+#stage-host {
+  height: 360px;
+}
+#stage-host.stage-default {
+  width: 480px;
+}
+#stage-host.stage-wide {
+  width: 640px;
+}

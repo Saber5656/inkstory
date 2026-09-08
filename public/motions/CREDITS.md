@@ -15,6 +15,6 @@ Rokoko source recording, so no such BVH is vendored or claimed as the source of 
 bundled clip here. Contributors must record the exact source URL/commit and the source
 terms before adding a converted file.
 
-| clip | bundled source | license conclusion |
-| --- | --- | --- |
+| clip                                                                         | bundled source                    | license conclusion                                                   |
+| ---------------------------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------- |
 | idle_breathe, wave, walk, run, jump, dance_1, dance_2, spin, sit_down, cheer | inkstory original procedural seed | CC0-equivalent project original; no upstream recording redistributed |

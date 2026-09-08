@@ -9,7 +9,11 @@ export interface SegmentResult {
   ok: boolean;
 }
 
-interface PixelImage { readonly width: number; readonly height: number; readonly data: Uint8ClampedArray | Uint8Array; }
+interface PixelImage {
+  readonly width: number;
+  readonly height: number;
+  readonly data: Uint8ClampedArray | Uint8Array;
+}
 
 /**
  * Classical segmentation port from Meta AnimatedDrawings
@@ -17,7 +21,10 @@ interface PixelImage { readonly width: number; readonly height: number; readonly
  * The upstream implementation uses OpenCV adaptiveThreshold(ADAPTIVE_THRESH_GAUSSIAN_C,
  * blockSize=115, C=8), followed by close x2, dilate x2 and edge flood fill.
  */
-export function segment(img: ImageData | PixelImage, opts: SegmentOptions = {}): SegmentResult {
+export function segment(
+  img: ImageData | PixelImage,
+  opts: SegmentOptions = {},
+): SegmentResult {
   const width = img.width;
   const height = img.height;
   if (width <= 0 || height <= 0 || img.data.length < width * height * 4) {
@@ -52,12 +59,17 @@ export function segment(img: ImageData | PixelImage, opts: SegmentOptions = {}):
 
 import { close, dilate } from './morphology.ts';
 
-function gaussianMean(input: Uint8Array, width: number, height: number): Uint8Array {
+function gaussianMean(
+  input: Uint8Array,
+  width: number,
+  height: number,
+): Uint8Array {
   // The exact 115-tap path is retained for ordinary photos and fixture parity.
   // At 2048², a separable 115-tap loop is too slow on mid-range phones; this
   // recursive Gaussian approximation has the same Gaussian weighting and is
   // linear in pixel count (unlike an integral-image box approximation).
-  if (input.length > 1024 * 1024) return recursiveGaussianMean(input, width, height);
+  if (input.length > 1024 * 1024)
+    return recursiveGaussianMean(input, width, height);
   const radius = 57;
   const sigma = 115 / 6;
   const weights = new Float64Array(radius + 1);
@@ -92,44 +104,74 @@ function gaussianMean(input: Uint8Array, width: number, height: number): Uint8Ar
   return output;
 }
 
-function recursiveGaussianMean(input: Uint8Array, width: number, height: number): Uint8Array {
+function recursiveGaussianMean(
+  input: Uint8Array,
+  width: number,
+  height: number,
+): Uint8Array {
   const sigma = 115 / 6;
   const alpha = Math.exp(-Math.SQRT2 / sigma);
   const horizontal = new Float64Array(input.length);
   const output = new Uint8Array(input.length);
   for (let y = 0; y < height; y += 1) {
     let forward = input[y * width]!;
-    for (let x = 0; x < width; x += 1) { forward = alpha * forward + (1 - alpha) * input[y * width + x]!; horizontal[y * width + x] = forward; }
+    for (let x = 0; x < width; x += 1) {
+      forward = alpha * forward + (1 - alpha) * input[y * width + x]!;
+      horizontal[y * width + x] = forward;
+    }
     let backward = horizontal[y * width + width - 1]!;
-    for (let x = width - 1; x >= 0; x -= 1) { backward = alpha * backward + (1 - alpha) * horizontal[y * width + x]!; horizontal[y * width + x] = (horizontal[y * width + x]! + backward) / 2; }
+    for (let x = width - 1; x >= 0; x -= 1) {
+      backward = alpha * backward + (1 - alpha) * horizontal[y * width + x]!;
+      horizontal[y * width + x] = (horizontal[y * width + x]! + backward) / 2;
+    }
   }
   for (let x = 0; x < width; x += 1) {
     let forward = horizontal[x]!;
-    for (let y = 0; y < height; y += 1) { forward = alpha * forward + (1 - alpha) * horizontal[y * width + x]!; output[y * width + x] = Math.round(forward); }
+    for (let y = 0; y < height; y += 1) {
+      forward = alpha * forward + (1 - alpha) * horizontal[y * width + x]!;
+      output[y * width + x] = Math.round(forward);
+    }
     let backward = output[(height - 1) * width + x]!;
-    for (let y = height - 1; y >= 0; y -= 1) { backward = alpha * backward + (1 - alpha) * output[y * width + x]!; output[y * width + x] = Math.round((output[y * width + x]! + backward) / 2); }
+    for (let y = height - 1; y >= 0; y -= 1) {
+      backward = alpha * backward + (1 - alpha) * output[y * width + x]!;
+      output[y * width + x] = Math.round(
+        (output[y * width + x]! + backward) / 2,
+      );
+    }
   }
   return output;
 }
 
-function floodEdgeBackground(mask: Uint8Array, width: number, height: number): void {
+function floodEdgeBackground(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+): void {
   const seen = new Uint8Array(mask.length);
   const queue = new Int32Array(mask.length);
   let head = 0;
   let tail = 0;
   const add = (x: number, y: number) => {
     const index = y * width + x;
-    if (seen[index] === 0 && mask[index] === 0) { seen[index] = 1; queue[tail++] = index; }
+    if (seen[index] === 0 && mask[index] === 0) {
+      seen[index] = 1;
+      queue[tail++] = index;
+    }
   };
   for (let i = 0; i < 10; i += 1) {
-    add(Math.round(i * (width - 1) / 9), 0); add(Math.round(i * (width - 1) / 9), height - 1);
-    add(0, Math.round(i * (height - 1) / 9)); add(width - 1, Math.round(i * (height - 1) / 9));
+    add(Math.round((i * (width - 1)) / 9), 0);
+    add(Math.round((i * (width - 1)) / 9), height - 1);
+    add(0, Math.round((i * (height - 1)) / 9));
+    add(width - 1, Math.round((i * (height - 1)) / 9));
   }
   while (head < tail) {
     const index = queue[head++]!;
-    const x = index % width; const y = Math.floor(index / width);
-    if (x > 0) add(x - 1, y); if (x + 1 < width) add(x + 1, y);
-    if (y > 0) add(x, y - 1); if (y + 1 < height) add(x, y + 1);
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (x > 0) add(x - 1, y);
+    if (x + 1 < width) add(x + 1, y);
+    if (y > 0) add(x, y - 1);
+    if (y + 1 < height) add(x, y + 1);
   }
   // Flooded edge-connected zeroes are background and remain zero. Keeping this
   // explicit makes the polarity obvious and prevents a white border becoming
@@ -137,42 +179,95 @@ function floodEdgeBackground(mask: Uint8Array, width: number, height: number): v
   for (let i = 0; i < mask.length; i += 1) if (seen[i] !== 0) mask[i] = 0;
 }
 
-function largestComponent(input: Uint8Array, width: number, height: number): Uint8Array {
+function largestComponent(
+  input: Uint8Array,
+  width: number,
+  height: number,
+): Uint8Array {
   const visited = new Uint8Array(input.length);
   const queue = new Int32Array(input.length);
   let largest = 0;
   let largestCount = 0;
   for (let start = 0; start < input.length; start += 1) {
     if (input[start] === 0 || visited[start] !== 0) continue;
-    let head = 0; let tail = 0; let count = 0;
-    const visit = (index: number) => { if (input[index] !== 0 && visited[index] === 0) { visited[index] = 1; queue[tail++] = index; } };
-    queue[tail++] = start; visited[start] = 1;
+    let head = 0;
+    let tail = 0;
+    let count = 0;
+    const visit = (index: number) => {
+      if (input[index] !== 0 && visited[index] === 0) {
+        visited[index] = 1;
+        queue[tail++] = index;
+      }
+    };
+    queue[tail++] = start;
+    visited[start] = 1;
     while (head < tail) {
-      const index = queue[head++]!; count += 1;
-      const x = index % width; const y = Math.floor(index / width);
-      if (x > 0) visit(index - 1); if (x + 1 < width) visit(index + 1);
-      if (y > 0) visit(index - width); if (y + 1 < height) visit(index + width);
+      const index = queue[head++]!;
+      count += 1;
+      const x = index % width;
+      const y = Math.floor(index / width);
+      if (x > 0) visit(index - 1);
+      if (x + 1 < width) visit(index + 1);
+      if (y > 0) visit(index - width);
+      if (y + 1 < height) visit(index + width);
     }
-    if (count > largestCount) { largestCount = count; largest = start; }
+    if (count > largestCount) {
+      largestCount = count;
+      largest = start;
+    }
   }
   const output = new Uint8Array(input.length);
   if (largestCount === 0) return output;
-  let head = 0; let tail = 0; queue[tail++] = largest; output[largest] = 255;
-  const copy = (index: number) => { if (input[index] !== 0 && output[index] === 0) { output[index] = 255; queue[tail++] = index; } };
+  let head = 0;
+  let tail = 0;
+  queue[tail++] = largest;
+  output[largest] = 255;
+  const copy = (index: number) => {
+    if (input[index] !== 0 && output[index] === 0) {
+      output[index] = 255;
+      queue[tail++] = index;
+    }
+  };
   while (head < tail) {
-    const index = queue[head++]!; const x = index % width; const y = Math.floor(index / width);
-    if (x > 0) copy(index - 1); if (x + 1 < width) copy(index + 1);
-    if (y > 0) copy(index - width); if (y + 1 < height) copy(index + width);
+    const index = queue[head++]!;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (x > 0) copy(index - 1);
+    if (x + 1 < width) copy(index + 1);
+    if (y > 0) copy(index - width);
+    if (y + 1 < height) copy(index + width);
   }
   return output;
 }
 
 function fillHoles(mask: Uint8Array, width: number, height: number): void {
   const outside = new Uint8Array(mask.length);
-  const queue = new Int32Array(mask.length); let head = 0; let tail = 0;
-  const add = (index: number) => { if (mask[index] === 0 && outside[index] === 0) { outside[index] = 1; queue[tail++] = index; } };
-  for (let x = 0; x < width; x += 1) { add(x); add((height - 1) * width + x); }
-  for (let y = 0; y < height; y += 1) { add(y * width); add(y * width + width - 1); }
-  while (head < tail) { const i = queue[head++]!; const x = i % width; const y = Math.floor(i / width); if (x > 0) add(i - 1); if (x + 1 < width) add(i + 1); if (y > 0) add(i - width); if (y + 1 < height) add(i + width); }
-  for (let i = 0; i < mask.length; i += 1) if (mask[i] === 0 && outside[i] === 0) mask[i] = 255;
+  const queue = new Int32Array(mask.length);
+  let head = 0;
+  let tail = 0;
+  const add = (index: number) => {
+    if (mask[index] === 0 && outside[index] === 0) {
+      outside[index] = 1;
+      queue[tail++] = index;
+    }
+  };
+  for (let x = 0; x < width; x += 1) {
+    add(x);
+    add((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    add(y * width);
+    add(y * width + width - 1);
+  }
+  while (head < tail) {
+    const i = queue[head++]!;
+    const x = i % width;
+    const y = Math.floor(i / width);
+    if (x > 0) add(i - 1);
+    if (x + 1 < width) add(i + 1);
+    if (y > 0) add(i - width);
+    if (y + 1 < height) add(i + width);
+  }
+  for (let i = 0; i < mask.length; i += 1)
+    if (mask[i] === 0 && outside[i] === 0) mask[i] = 255;
 }

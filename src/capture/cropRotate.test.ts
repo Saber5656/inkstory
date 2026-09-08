@@ -8,6 +8,11 @@ describe('crop rotation geometry', () => {
   });
 
   it('clamps crop rectangles to source bounds', () => {
-    expect(clampRect({ x: -4, y: 8, width: 20, height: 30 }, 10, 20)).toEqual({ x: 0, y: 8, width: 10, height: 12 });
+    expect(clampRect({ x: -4, y: 8, width: 20, height: 30 }, 10, 20)).toEqual({
+      x: 0,
+      y: 8,
+      width: 10,
+      height: 12,
+    });
   });
 });

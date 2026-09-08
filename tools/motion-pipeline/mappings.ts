@@ -1,3 +1,37 @@
-export const CMU_MAPPING = { root: 'Hips', hip: 'Hips', torso: 'Spine', neck: 'Neck', right_shoulder: 'RightShoulder', right_elbow: 'RightArm', right_hand: 'RightForeArm', left_shoulder: 'LeftShoulder', left_elbow: 'LeftArm', left_hand: 'LeftForeArm', right_hip: 'RightUpLeg', right_knee: 'RightLeg', right_foot: 'RightFoot', left_hip: 'LeftUpLeg', left_knee: 'LeftLeg', left_foot: 'LeftFoot' } as const;
-export const ROKOKO_MIXAMO_MAPPING = { root: 'mixamorig:Hips', hip: 'mixamorig:Hips', torso: 'mixamorig:Spine', neck: 'mixamorig:Neck', right_shoulder: 'mixamorig:RightShoulder', right_elbow: 'mixamorig:RightArm', right_hand: 'mixamorig:RightForeArm', left_shoulder: 'mixamorig:LeftShoulder', left_elbow: 'mixamorig:LeftArm', left_hand: 'mixamorig:LeftForeArm', right_hip: 'mixamorig:RightUpLeg', right_knee: 'mixamorig:RightLeg', right_foot: 'mixamorig:RightFoot', left_hip: 'mixamorig:LeftUpLeg', left_knee: 'mixamorig:LeftLeg', left_foot: 'mixamorig:LeftFoot' } as const;
+export const CMU_MAPPING = {
+  root: 'Hips',
+  hip: 'Hips',
+  torso: 'Spine',
+  neck: 'Neck',
+  right_shoulder: 'RightShoulder',
+  right_elbow: 'RightArm',
+  right_hand: 'RightForeArm',
+  left_shoulder: 'LeftShoulder',
+  left_elbow: 'LeftArm',
+  left_hand: 'LeftForeArm',
+  right_hip: 'RightUpLeg',
+  right_knee: 'RightLeg',
+  right_foot: 'RightFoot',
+  left_hip: 'LeftUpLeg',
+  left_knee: 'LeftLeg',
+  left_foot: 'LeftFoot',
+} as const;
+export const ROKOKO_MIXAMO_MAPPING = {
+  root: 'mixamorig:Hips',
+  hip: 'mixamorig:Hips',
+  torso: 'mixamorig:Spine',
+  neck: 'mixamorig:Neck',
+  right_shoulder: 'mixamorig:RightShoulder',
+  right_elbow: 'mixamorig:RightArm',
+  right_hand: 'mixamorig:RightForeArm',
+  left_shoulder: 'mixamorig:LeftShoulder',
+  left_elbow: 'mixamorig:LeftArm',
+  left_hand: 'mixamorig:LeftForeArm',
+  right_hip: 'mixamorig:RightUpLeg',
+  right_knee: 'mixamorig:RightLeg',
+  right_foot: 'mixamorig:RightFoot',
+  left_hip: 'mixamorig:LeftUpLeg',
+  left_knee: 'mixamorig:LeftLeg',
+  left_foot: 'mixamorig:LeftFoot',
+} as const;
 export const FAIR_MAPPING = CMU_MAPPING;

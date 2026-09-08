@@ -28,16 +28,26 @@ export function createRendererFrameProbe(
     const listeners = renderers.map(() => {
       let frames = 0;
       return {
-        listener: { postrender: () => { frames += 1; } },
-        get frames() { return frames; },
+        listener: {
+          postrender: () => {
+            frames += 1;
+          },
+        },
+        get frames() {
+          return frames;
+        },
       };
     });
     const startedAt = now();
-    renderers.forEach((renderer, index) => renderer.runners.postrender.add(listeners[index]!.listener));
+    renderers.forEach((renderer, index) =>
+      renderer.runners.postrender.add(listeners[index]!.listener),
+    );
     try {
       await wait(durationMs);
     } finally {
-      renderers.forEach((renderer, index) => renderer.runners.postrender.remove(listeners[index]!.listener));
+      renderers.forEach((renderer, index) =>
+        renderer.runners.postrender.remove(listeners[index]!.listener),
+      );
     }
     const elapsedMs = Math.max(1, now() - startedAt);
     const frames = listeners.reduce((sum, value) => sum + value.frames, 0);

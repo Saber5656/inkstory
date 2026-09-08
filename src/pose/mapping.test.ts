@@ -4,7 +4,11 @@ import { templateJoints } from './template.ts';
 
 describe('pose mapping', () => {
   it('maps COCO landmarks to all 16 joints with derived torso points', () => {
-    const keypoints = Array.from({ length: 17 }, (_, index) => ({ x: index * 2, y: index * 3, score: 0.9 }));
+    const keypoints = Array.from({ length: 17 }, (_, index) => ({
+      x: index * 2,
+      y: index * 3,
+      score: 0.9,
+    }));
     const joints = cocoToSkeleton(keypoints, { width: 100, height: 100 });
     expect(joints.neck).toEqual({ x: 11, y: 16.5 });
     expect(joints.torso).toEqual({ x: 17, y: 25.5 });

@@ -46,26 +46,36 @@ async function openSampleStage(page: import('@playwright/test').Page) {
 }
 
 for (const viewport of viewports) {
-  test(`renders all motion/background combinations at ${viewport.name}`, async ({ page }, testInfo) => {
+  test(`renders all motion/background combinations at ${viewport.name}`, async ({
+    page,
+  }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize(viewport);
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     const stage = await openSampleStage(page);
     const canvas = stage.locator('canvas');
-    const motionButtons = page.locator('.controls .pick-grid').first().getByRole('button');
+    const motionButtons = page
+      .locator('.controls .pick-grid')
+      .first()
+      .getByRole('button');
     const background = page.locator('.controls select').first();
     await expect(motionButtons).toHaveCount(motions.length);
     await expect(background.locator('option')).toHaveCount(backgrounds.length);
 
     for (let motionIndex = 0; motionIndex < motions.length; motionIndex += 1) {
       await motionButtons.nth(motionIndex).click();
-      await expect(motionButtons.nth(motionIndex)).toHaveAttribute('aria-pressed', 'true');
+      await expect(motionButtons.nth(motionIndex)).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
       for (const backgroundId of backgrounds) {
         await background.selectOption(backgroundId);
         await page.waitForTimeout(80);
         const screenshot = await stage.screenshot({
-          path: testInfo.outputPath(`${viewport.name}-${motions[motionIndex]}-${backgroundId}.png`),
+          path: testInfo.outputPath(
+            `${viewport.name}-${motions[motionIndex]}-${backgroundId}.png`,
+          ),
         });
         expect(screenshot.byteLength).toBeGreaterThan(1_000);
         const canvasInfo = await canvas.evaluate((element) => {

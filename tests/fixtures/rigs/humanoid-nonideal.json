@@ -1,10 +1,7 @@
 {
   "schemaVersion": 1,
   "meshMethod": "cdt",
-  "textureSize": [
-    160,
-    192
-  ],
+  "textureSize": [160, 192],
   "vertexCount": 499,
   "triangleCount": 647,
   "vertexSamples": [

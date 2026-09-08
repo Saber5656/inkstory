@@ -2,14 +2,35 @@ import { Mesh, MeshGeometry, Texture } from 'pixi.js';
 import type { Affine2D } from '../motion/fk';
 
 export type Influence = { boneIndex: number; w: number };
-export type SkinRig = { mesh: { vertices: number[]; triangles: number[]; uvs?: number[] }; weights: Influence[][]; textureSize?: { w: number; h: number } | [number, number] };
+export type SkinRig = {
+  mesh: { vertices: number[]; triangles: number[]; uvs?: number[] };
+  weights: Influence[][];
+  textureSize?: { w: number; h: number } | [number, number];
+};
 
 /** Reconstructs UVs for canonical rigs that predate the optional mesh.uvs field. */
 export function uvsForVertices(vertices: readonly number[]): number[] {
-  let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;
-  for (let index = 0; index < vertices.length; index += 2) { const x = vertices[index] ?? 0; const y = vertices[index + 1] ?? 0; minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
-  const width = Math.max(Number.EPSILON, maxX - minX); const height = Math.max(Number.EPSILON, maxY - minY); const uvs: number[] = [];
-  for (let index = 0; index < vertices.length; index += 2) { uvs.push(((vertices[index] ?? 0) - minX) / width, ((vertices[index + 1] ?? 0) - minY) / height); }
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let index = 0; index < vertices.length; index += 2) {
+    const x = vertices[index] ?? 0;
+    const y = vertices[index + 1] ?? 0;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+  const width = Math.max(Number.EPSILON, maxX - minX);
+  const height = Math.max(Number.EPSILON, maxY - minY);
+  const uvs: number[] = [];
+  for (let index = 0; index < vertices.length; index += 2) {
+    uvs.push(
+      ((vertices[index] ?? 0) - minX) / width,
+      ((vertices[index + 1] ?? 0) - minY) / height,
+    );
+  }
   return uvs;
 }
 
@@ -20,9 +41,16 @@ export class SkinnedMesh extends Mesh<MeshGeometry> {
 
   constructor(rig: SkinRig, texture: Texture) {
     const positions = new Float32Array(rig.mesh.vertices);
-    const uvs = new Float32Array(rig.mesh.uvs ?? uvsForVertices(rig.mesh.vertices));
+    const uvs = new Float32Array(
+      rig.mesh.uvs ?? uvsForVertices(rig.mesh.vertices),
+    );
     const indices = new Uint32Array(rig.mesh.triangles);
-    const geometry = new MeshGeometry({ positions, uvs, indices, shrinkBuffersToFit: false });
+    const geometry = new MeshGeometry({
+      positions,
+      uvs,
+      indices,
+      shrinkBuffersToFit: false,
+    });
     super({ geometry, texture });
     this.restVertices = positions;
     this.skinnedVertices = new Float32Array(positions.length);
@@ -45,7 +73,10 @@ export class SkinnedMesh extends Mesh<MeshGeometry> {
         outputX += (matrix.a * x + matrix.c * y + matrix.tx) * influence.w;
         outputY += (matrix.b * x + matrix.d * y + matrix.ty) * influence.w;
       }
-      if (influences.length === 0) { outputX = x; outputY = y; }
+      if (influences.length === 0) {
+        outputX = x;
+        outputY = y;
+      }
       target[vertex * 2] = outputX;
       target[vertex * 2 + 1] = outputY;
     }

@@ -1,12 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 
-import type {
-  Book,
-  Character,
-  Drawing,
-  Page,
-  Settings,
-} from '../domain/types';
+import type { Book, Character, Drawing, Page, Settings } from '../domain/types';
 import type { PersistedBlobRecord } from './blobPersistence';
 
 /**
