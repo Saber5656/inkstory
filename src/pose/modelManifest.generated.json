@@ -4,5 +4,5 @@
   "normalization": { "mean": [123.675, 116.28, 103.53], "std": [58.395, 57.12, 57.375] },
   "outputSpec": "coco17-heatmaps", "license": "MIT",
   "provenance": { "sourceRepo": "https://github.com/facebookresearch/AnimatedDrawings", "sourceCommit": "b859684857519c7424da51a0b0862fbd1fd258f4", "sourceAsset": "drawn_humanoid_pose_estimator.mar", "sourceUrl": "https://github.com/facebookresearch/AnimatedDrawings/releases/download/v0.0.1/drawn_humanoid_pose_estimator.mar", "sourceSha256": "40ebdc69f1727dfe475161ae751fb066013e590f8894fe0016f0b69b336ee42f", "convertedBy": "inkstory/tools/model-pipeline (conversion blocked)", "date": "2026-09-08" },
-  "unavailableReason": "Upstream MAR is 374824711 bytes, above the 62914560 byte hard cap; pinned PyTorch/MMDeploy conversion environment is unavailable."
+  "unavailableReason": "Conversion probe on CPython 3.11.16 macOS arm64 could not resolve mmdeploy==1.3.1: no matching macOS arm64 wheel (only manylinux2014_x86_64 and win_amd64). No ONNX artifact was produced."
 }

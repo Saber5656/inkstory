@@ -14,8 +14,10 @@ python3 tools/model-pipeline/pipeline.py inspect --download-dir /tmp/inkstory-po
 python3 tools/model-pipeline/pipeline.py verify
 ```
 
-`inspect` downloads only that pinned asset and lists MAR members. `convert` exits with
-a machine-readable blocker: the source MAR is already over the 60MB hard cap before
-export or quantization, and no pinned PyTorch/OpenMMPose/MMDeploy environment exists.
-It does not write a fake ONNX file. The app consumes
+`inspect` downloads only that pinned asset and lists MAR members plus internal config
+hashes. `verify --archive PATH` checks the app manifest, source bytes, and MAR config
+integrity. `convert` exits with the observed machine-readable dependency blocker from
+the available macOS arm64 environment. The source archive size is recorded for
+planning, but is not treated as the final ONNX size. The command does not write a fake
+ONNX file. The app consumes
 `src/pose/modelManifest.generated.json`, currently `status: "unavailable"`.

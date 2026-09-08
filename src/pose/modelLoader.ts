@@ -28,7 +28,7 @@ export async function loadPoseModel(options: ModelLoaderOptions = {}): Promise<M
         const stored = await (await cache.open(CACHE_NAME)).match(url);
         if (stored) {
           const bytes = await stored.arrayBuffer();
-          if (await verifyHash(bytes, manifest.sha256, options.crypto)) return { available: true, bytes, manifest };
+          if (await verifyAssetIntegrity(bytes, manifest.sha256, options.crypto)) return { available: true, bytes, manifest };
           await cache.open(CACHE_NAME).then((bucket) => bucket.delete(url));
         }
       } catch { /* a cache failure falls through to the network */ }
@@ -38,7 +38,7 @@ export async function loadPoseModel(options: ModelLoaderOptions = {}): Promise<M
     if (!response.ok) return { available: false, reason: 'fetch', detail: `HTTP ${response.status}` };
     let bytes: ArrayBuffer;
     try { bytes = await readResponse(response, options.onProgress); } catch (error) { return { available: false, reason: 'fetch', detail: error instanceof Error ? error.message : undefined }; }
-    if (!(await verifyHash(bytes, manifest.sha256, options.crypto))) {
+    if (!(await verifyAssetIntegrity(bytes, manifest.sha256, options.crypto))) {
       if (cache) await cache.open(CACHE_NAME).then((bucket) => bucket.delete(url));
       if (attempt === 1) return { available: false, reason: 'integrity' };
       continue;
@@ -65,7 +65,7 @@ async function readResponse(response: Response, onProgress?: ModelLoaderOptions[
   const bytes = new Uint8Array(loaded); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; } return bytes.buffer;
 }
 
-async function verifyHash(bytes: ArrayBuffer, expected: string, cryptoObject = globalThis.crypto): Promise<boolean> {
+export async function verifyAssetIntegrity(bytes: ArrayBuffer, expected: string, cryptoObject = globalThis.crypto): Promise<boolean> {
   if (!/^[a-f0-9]{64}$/i.test(expected) || !cryptoObject?.subtle) return false;
   try { const digest = await cryptoObject.subtle.digest('SHA-256', bytes); const actual = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join(''); return actual === expected.toLowerCase(); } catch { return false; }
 }

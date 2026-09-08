@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadPoseModel } from './modelLoader.ts';
+import { loadPoseModel, verifyAssetIntegrity } from './modelLoader.ts';
 
 describe('reviewed pose model loader', () => {
   it('does not fetch when the bundled manifest is unavailable', async () => {
@@ -29,5 +29,10 @@ describe('reviewed pose model loader', () => {
       fetch: () => { attempts += 1; const value = attempts === 1 ? bad : good; return Promise.resolve(new Response(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength))); },
     });
     expect(result.available).toBe(true); expect(attempts).toBe(2);
+  });
+
+  it('rejects a mismatched asset hash for model or wasm callers', async () => {
+    const bytes = new TextEncoder().encode('wasm-bytes');
+    expect(await verifyAssetIntegrity(bytes.buffer, '0000000000000000000000000000000000000000000000000000000000000000')).toBe(false);
   });
 });
