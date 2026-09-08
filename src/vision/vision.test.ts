@@ -27,4 +27,29 @@ describe('vision pure operations', () => {
     expect(history.undo(changed)).toEqual(empty);
     expect(history.redo(empty)).toEqual(changed);
   });
+
+  it('marks blank and fully dark inputs as uncertain', () => {
+    const white = image(64, 64, () => [255, 255, 255]);
+    const dark = image(64, 64, () => [0, 0, 0]);
+    expect(segment(white).ok).toBe(false);
+    expect(segment(dark).ok).toBe(false);
+  });
+
+  it('covers six deterministic drawing fixture families with plausible masks', () => {
+    const fixtures = [
+      (x: number, y: number) => x > 24 && x < 104 && y > 16 && y < 112,
+      (x: number, y: number) => Math.hypot(x - 64, y - 64) < 45,
+      (x: number, y: number) => y > 20 && y < 108 && Math.abs(x - 64) < (y - 16) / 2,
+      (x: number, y: number) => (x > 35 && x < 93 && y > 20 && y < 108) || (x > 20 && x < 108 && y > 52 && y < 76),
+      (x: number, y: number) => Math.abs(x - 64) < 12 || Math.abs(y - 64) < 12,
+      (x: number, y: number) => Math.abs(x - 64) + Math.abs(y - 64) < 48,
+    ];
+    for (const shape of fixtures) {
+      const source = image(128, 128, (x, y) => shape(x, y) ? [30, 30, 30] : [255, 255, 255]);
+      const result = segment(source);
+      expect(result.ok).toBe(true);
+      expect(result.coverage).toBeGreaterThan(0.02);
+      expect(result.coverage).toBeLessThan(0.98);
+    }
+  });
 });

@@ -53,6 +53,11 @@ export function segment(img: ImageData | PixelImage, opts: SegmentOptions = {}):
 import { close, dilate } from './morphology.ts';
 
 function gaussianMean(input: Uint8Array, width: number, height: number): Uint8Array {
+  // The exact 115-tap path is retained for ordinary photos and fixture parity.
+  // At 2048², a separable 115-tap loop is too slow on mid-range phones; this
+  // recursive Gaussian approximation has the same Gaussian weighting and is
+  // linear in pixel count (unlike an integral-image box approximation).
+  if (input.length > 1024 * 1024) return recursiveGaussianMean(input, width, height);
   const radius = 57;
   const sigma = 115 / 6;
   const weights = new Float64Array(radius + 1);
@@ -83,6 +88,26 @@ function gaussianMean(input: Uint8Array, width: number, height: number): Uint8Ar
       }
       output[y * width + x] = Math.round(value);
     }
+  }
+  return output;
+}
+
+function recursiveGaussianMean(input: Uint8Array, width: number, height: number): Uint8Array {
+  const sigma = 115 / 6;
+  const alpha = Math.exp(-Math.SQRT2 / sigma);
+  const horizontal = new Float64Array(input.length);
+  const output = new Uint8Array(input.length);
+  for (let y = 0; y < height; y += 1) {
+    let forward = input[y * width]!;
+    for (let x = 0; x < width; x += 1) { forward = alpha * forward + (1 - alpha) * input[y * width + x]!; horizontal[y * width + x] = forward; }
+    let backward = horizontal[y * width + width - 1]!;
+    for (let x = width - 1; x >= 0; x -= 1) { backward = alpha * backward + (1 - alpha) * horizontal[y * width + x]!; horizontal[y * width + x] = (horizontal[y * width + x]! + backward) / 2; }
+  }
+  for (let x = 0; x < width; x += 1) {
+    let forward = horizontal[x]!;
+    for (let y = 0; y < height; y += 1) { forward = alpha * forward + (1 - alpha) * horizontal[y * width + x]!; output[y * width + x] = Math.round(forward); }
+    let backward = output[(height - 1) * width + x]!;
+    for (let y = height - 1; y >= 0; y -= 1) { backward = alpha * backward + (1 - alpha) * output[y * width + x]!; output[y * width + x] = Math.round((output[y * width + x]! + backward) / 2); }
   }
   return output;
 }

@@ -15,8 +15,10 @@ export async function toTexture(drawing: ImageData | RgbaImage, mask: Uint8Array
   const scale = Math.min(1, 1024 / Math.max(bbox.width, bbox.height));
   const outWidth = Math.max(1, Math.round(bbox.width * scale));
   const outHeight = Math.max(1, Math.round(bbox.height * scale));
-  const textureCanvas = createCanvas(outWidth, outHeight);
-  const maskCanvas = createCanvas(outWidth, outHeight);
+  // Render at the unscaled bbox size first. A smaller destination canvas would
+  // make putImageData clip large source drawings before the <=1024px resize.
+  const textureCanvas = createCanvas(bbox.width, bbox.height);
+  const maskCanvas = createCanvas(bbox.width, bbox.height);
   const textureContext = textureCanvas.getContext('2d');
   const maskContext = maskCanvas.getContext('2d');
   if (!textureContext || !maskContext) throw new Error('Canvas 2D context unavailable');
@@ -55,6 +57,10 @@ function createCanvas(width: number, height: number): HTMLCanvasElement | Offscr
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<Blob> {
-  if (canvas instanceof OffscreenCanvas) return canvas.convertToBlob({ type: 'image/png' });
+  if (isOffscreenCanvas(canvas)) return canvas.convertToBlob({ type: 'image/png' });
   return new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('PNG encoding failed')), 'image/png'));
+}
+
+function isOffscreenCanvas(canvas: HTMLCanvasElement | OffscreenCanvas): canvas is OffscreenCanvas {
+  return typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas;
 }

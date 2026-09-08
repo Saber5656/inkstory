@@ -73,8 +73,12 @@ function canvasToBlob(
   canvas: HTMLCanvasElement | OffscreenCanvas,
   type: string,
 ): Promise<Blob> {
-  if (canvas instanceof OffscreenCanvas) return canvas.convertToBlob({ type });
+  if (isOffscreenCanvas(canvas)) return canvas.convertToBlob({ type });
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encoding failed'))), type);
   });
+}
+
+function isOffscreenCanvas(canvas: HTMLCanvasElement | OffscreenCanvas): canvas is OffscreenCanvas {
+  return typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas;
 }

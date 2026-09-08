@@ -1,13 +1,15 @@
-import type { JointMap, JointName, Point } from '../pose/mapping.ts';
+import type { JointName, Point } from '../pose/mapping.ts';
+
+export type RigJointTuples = { [name in JointName]: [number, number] };
 
 export interface RigWeight { boneIndex: number; w: number; }
 export interface CharacterRig {
   schemaVersion: 1;
-  joints: JointMap;
+  joints: RigJointTuples;
   mesh: { vertices: number[]; triangles: number[] };
   weights: RigWeight[][];
   meshMethod: 'cdt' | 'grid';
-  textureSize: { width: number; height: number };
+  textureSize: [number, number];
 }
 export const BONE_NAMES = [
   'hip', 'torso', 'neck', 'right_shoulder', 'right_elbow', 'right_hand',
