@@ -20,7 +20,8 @@ async function lintWithRepositoryConfig(
   return result.messages;
 }
 
-describe('ESLint security guard', { timeout: 15000 }, () => {
+// Type-aware ESLint builds a TypeScript program on the first lintText call.
+describe('ESLint security guard', { timeout: 30000 }, () => {
   it('rejects user-facing literals in application TSX', async () => {
     const messages = await lintWithRepositoryConfig(
       'export function Literal() {return <button>Hello there</button>;}',
