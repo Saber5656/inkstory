@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>inkstory 画面モック</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Kosugi+Maru&display=swap">
+<style>
+  /* ---------- workbench (viewer chrome) ---------- */
+  :root{
+    --bench:#ECE9E3; --bench-2:#FFFFFF; --bench-ink:#2A2830; --bench-mute:#6E6A72; --bench-line:#D7D3CB;
+    --bench-acc:#3E7CC9; --bench-acc-ink:#FFFFFF;
+    --note:#FFF9E8;
+    /* app tokens (v1 is light-only: DESIGN issue 03-5) */
+    --paper:#FBF6EA; --paper-2:#F2EBD9; --paper-3:#E7DEC6; --ink:#2B2A33; --mute:#7A7568; --line:#D9D0B8;
+    --red:#E8553F; --blue:#3E7CC9; --yellow:#F2C14E; --green:#5BA560; --purple:#8B6BC7;
+    --ok:#5BA560; --warn:#D99A21; --bad:#D9453A;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bench:#1E1D21; --bench-2:#2A292E; --bench-ink:#ECE9E2; --bench-mute:#A7A3AC; --bench-line:#3D3B42;
+      --bench-acc:#7FB0E8; --bench-acc-ink:#111; --note:#33302A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bench:#1E1D21; --bench-2:#2A292E; --bench-ink:#ECE9E2; --bench-mute:#A7A3AC; --bench-line:#3D3B42;
+    --bench-acc:#7FB0E8; --bench-acc-ink:#111; --note:#33302A;
+  }
+  html,body{height:100%}
+  body{margin:0;background:var(--bench);color:var(--bench-ink);font:14px/1.5 -apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif}
+  *{box-sizing:border-box}
+  a{color:var(--bench-acc)}
+  button{font:inherit}
+
+  .top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:14px 16px 10px;border-bottom:1px solid var(--bench-line)}
+  .top h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.02em}
+  .top p{margin:0;color:var(--bench-mute);font-size:13px}
+  .wrap{display:grid;grid-template-columns:230px minmax(0,1fr) 340px;gap:0;min-height:calc(100% - 52px)}
+  nav{border-right:1px solid var(--bench-line);padding:12px 10px 24px;overflow:auto}
+  nav h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--bench-mute);margin:14px 8px 4px;font-weight:600}
+  nav button{display:block;width:100%;text-align:left;border:0;background:none;color:inherit;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13.5px}
+  nav button:hover{background:var(--bench-2)}
+  nav button[aria-current="true"]{background:var(--bench-acc);color:var(--bench-acc-ink);font-weight:600}
+  nav button:focus-visible,.notes a:focus-visible{outline:2px solid var(--bench-acc);outline-offset:2px}
+  nav small{display:block;opacity:.7;font-size:11px}
+
+  .stage{padding:22px 16px 40px;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0;overflow:hidden}
+  .stage .route{font:12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--bench-mute);background:var(--bench-2);border:1px solid var(--bench-line);padding:6px 10px;border-radius:999px}
+  .scaler{transform-origin:top center}
+  .frame{background:var(--paper);color:var(--ink);font-family:"Zen Maru Gothic","Kosugi Maru","Hiragino Maru Gothic ProN","BIZ UDPGothic","Rounded Mplus 1c",system-ui,sans-serif;font-weight:500;font-size:16px;line-height:1.45;border-radius:36px;box-shadow:0 0 0 10px #1c1b1f,0 0 0 12px #55535b,0 24px 60px rgba(0,0,0,.35);overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .frame.phone{width:390px;height:800px}
+  .frame.tablet{width:1024px;height:860px;border-radius:24px}
+  .frame *{box-sizing:border-box}
+
+  .notes{border-left:1px solid var(--bench-line);padding:16px 18px 40px;overflow:auto;background:var(--bench-2)}
+  .notes h3{margin:0 0 4px;font-size:15px}
+  .notes p.lead{margin:0 0 14px;color:var(--bench-mute);font-size:13px}
+  .notes ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  .notes li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:13px;line-height:1.5}
+  .notes li b.c{position:static}
+  .notes small{display:block;color:var(--bench-mute);font-size:11.5px;margin-top:2px}
+  .notes .src{font-family:ui-monospace,Menlo,monospace}
+
+  .screen{display:none}
+  .screen.active{display:contents}
+
+  /* callouts */
+  .pos{position:relative}
+  b.c{position:absolute;top:-8px;right:-8px;z-index:5;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font:700 12px/22px -apple-system,system-ui,sans-serif;text-align:center;box-shadow:0 0 0 2px #fff;pointer-events:none}
+  b.c.l{right:auto;left:-8px}
+  b.c.b{top:auto;bottom:-8px}
+  b.c.in,.canvas>b.c{top:8px;right:8px}
+
+  /* ---------- app components ---------- */
+  .bar{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;min-height:56px}
+  .bar .title{font-weight:700;font-size:18px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ib{width:48px;height:48px;border-radius:14px;border:0;background:var(--paper-2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;flex:none}
+  .ib.ghost{background:transparent}
+  .body{flex:1;overflow:auto;padding:0 16px 20px;display:flex;flex-direction:column;gap:14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:16px;border:0;background:var(--paper-2);color:var(--ink);font-weight:700;font-size:16px;text-decoration:none}
+  .btn.pri{background:var(--red);color:#fff}
+  .btn.sec{background:var(--blue);color:#fff}
+  .btn.line{background:transparent;border:2px solid var(--line)}
+  .btn.big{min-height:72px;font-size:19px;border-radius:22px;width:100%}
+  .btn.xl{min-height:64px;width:100%;font-size:18px}
+  .btn.danger{background:transparent;color:var(--bad);border:2px solid var(--bad)}
+  .btn:disabled{opacity:.4}
+  .row{display:flex;gap:10px;align-items:center}
+  .row.between{justify-content:space-between}
+  .row.wrap{flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .grow{flex:1;min-width:0}
+  .mute{color:var(--mute);font-size:14px}
+  .tiny{font-size:12.5px}
+  .tabs{display:flex;gap:6px;background:var(--paper-2);padding:4px;border-radius:16px}
+  .tabs span{flex:1;text-align:center;padding:10px;border-radius:12px;font-weight:700;color:var(--mute)}
+  .tabs span.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .card{background:#fff;border-radius:18px;padding:14px;border:1px solid var(--line)}
+  .card.soft{background:var(--paper-2);border-color:transparent}
+  .card h4{margin:0 0 6px;font-size:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .thumb{aspect-ratio:1;background:#fff;border:1px solid var(--line);border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .thumb svg{width:70%;height:70%}
+  .chip{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:2px solid var(--line);font-weight:700;font-size:14px;white-space:nowrap}
+  .chip.on{border-color:var(--blue);background:#E9F1FB}
+  .chip.sug{border-color:var(--yellow);background:#FFF6DA}
+  .chip .tag{font-size:11px;background:var(--yellow);color:#4a3600;padding:1px 6px;border-radius:6px}
+  .seg{display:inline-flex;background:var(--paper-2);border-radius:12px;padding:3px}
+  .seg span{padding:8px 12px;border-radius:10px;font-weight:700;font-size:14px;color:var(--mute);min-width:44px;text-align:center}
+  .seg span.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .slider{height:8px;border-radius:4px;background:var(--paper-3);position:relative}
+  .slider i{position:absolute;top:-10px;width:28px;height:28px;border-radius:50%;background:#fff;border:3px solid var(--blue);transform:translateX(-50%)}
+  .slider em{position:absolute;inset:0 auto 0 0;background:var(--blue);border-radius:4px}
+  .steps{display:flex;gap:6px;justify-content:center;padding:0 16px 8px}
+  .steps i{width:10px;height:10px;border-radius:50%;background:var(--paper-3)}
+  .steps i.done{background:var(--green)}
+  .steps i.on{background:var(--red);width:26px;border-radius:6px}
+  .footer{display:flex;gap:10px;padding:12px 16px calc(16px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--paper)}
+  .footer .btn{flex:1}
+  .toast{position:absolute;left:16px;right:16px;bottom:24px;background:var(--ink);color:#fff;padding:12px 14px;border-radius:14px;display:flex;gap:10px;align-items:center;font-size:14px;z-index:6}
+  .toast b{color:var(--yellow)}
+  .toast .btn{min-height:36px;padding:0 12px;font-size:14px;background:#fff;color:var(--ink)}
+  .scrim{position:absolute;inset:0;background:rgba(43,42,51,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:7}
+  .dialog{background:#fff;border-radius:22px;padding:20px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px}
+  .dialog h4{margin:0;font-size:18px}
+  .canvas{background:#fff;border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden}
+  .checker{background-color:#eee;background-image:linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%),linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%);background-size:16px 16px;background-position:0 0,8px 8px}
+  .meter{height:12px;border-radius:6px;background:var(--paper-3);overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--blue)}
+  .meter.warn i{background:var(--warn)}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .kbd{font-family:ui-monospace,Menlo,monospace;background:var(--paper-2);padding:1px 6px;border-radius:6px;font-size:13px}
+  .list{display:flex;flex-direction:column}
+  .list>div{display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .list>div:last-child{border-bottom:0}
+  .list .grow{font-weight:700}
+  .list .val{color:var(--mute);font-size:14px}
+  .sw{width:52px;height:30px;border-radius:15px;background:var(--paper-3);position:relative;flex:none}
+  .sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw.on{background:var(--green)}.sw.on i{left:25px}
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .status.ok{background:#E3F2E4;color:#2C6A32}.status.warn{background:#FFF1D2;color:#7A5400}.status.bad{background:#FDE3E1;color:#8E2A22}
+  .bg-meadow{background:linear-gradient(#BFE3F7 0 55%,#9AD37A 55%)}
+  .bg-sky{background:linear-gradient(#8EC8F2,#DFF1FC)}
+  .bg-night{background:linear-gradient(#1E2A5A,#3B4A8A)}
+  .bg-sea{background:linear-gradient(#CFEFFF 0 45%,#4EA8D8 45%)}
+  .bg-forest{background:linear-gradient(#B7E0B0,#4F8A4B)}
+  .bg-castle{background:linear-gradient(#F3D9E8,#B9A2D8)}
+  .bg-snow{background:linear-gradient(#E9F3FA 0 60%,#F7FBFF 60%)}
+  .bg-space{background:radial-gradient(circle at 30% 30%,#4A3E8C,#171433)}
+  .bg-cream{background:#FBF6EA}.bg-pink{background:#FADCE0}.bg-mint{background:#D9F1E6}.bg-lemon{background:#FFF3C4}
+  .textpanel{position:absolute;left:5%;right:5%;bottom:6%;background:rgba(255,255,255,.92);border-radius:18px;padding:12px 16px;font-weight:700;text-align:center;line-height:1.5}
+  .pagedots{position:absolute;left:0;right:0;bottom:1.5%;display:flex;justify-content:center;gap:5px}
+  .pagedots i{width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,.25)}.pagedots i.on{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+  .actor{position:absolute;left:50%;top:17.5%;height:60%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center}
+  .actor svg{height:100%;width:auto}
+  .badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--paper-2);color:var(--mute);white-space:nowrap}
+  .badge.auto{background:#E9F1FB;color:#1F4E86}
+  .badge.warn{background:#FFF1D2;color:#7A5400}
+  .badge.sample{background:#F0E9FB;color:#4D3A82}
+  .pin{position:absolute;min-width:26px;height:26px;padding:0 5px;white-space:nowrap;border-radius:13px;background:#fff;border:3px solid var(--blue);transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--blue)}
+  .pin.sel{border-color:var(--red);color:var(--red);box-shadow:0 0 0 6px rgba(232,85,63,.25)}
+  .pin.warnp{border-color:var(--warn);animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(217,154,33,.25)}}
+  .ants{stroke:#1F4E86;stroke-width:2;stroke-dasharray:6 4;fill:rgba(62,124,201,.45)}
+  .ring{width:56px;height:56px;border-radius:50%;background:conic-gradient(#fff 0 62%,rgba(255,255,255,.25) 62%);display:flex;align-items:center;justify-content:center}
+  .ring i{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+  .rail{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px}
+  .rail .thumb{width:88px;flex:none;flex-direction:column;gap:4px;font-size:12px;font-weight:700;aspect-ratio:auto;padding:8px 4px}
+  .rail .thumb svg{width:44px;height:44px}
+  .rail .thumb.on{border:3px solid var(--blue)}
+  .bgs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .bgs i{aspect-ratio:16/10;border-radius:10px;border:2px solid transparent;display:block}
+  .bgs i.on{border-color:var(--blue);box-shadow:0 0 0 2px #fff inset}
+  .lvl{display:flex;gap:3px;align-items:flex-end;height:36px}
+  .lvl i{width:6px;background:var(--green);border-radius:2px}
+  .rec{width:64px;height:64px;border-radius:50%;background:var(--red);border:0;color:#fff;font-weight:900;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+  .rec.stop{background:var(--ink)}
+  .warnbar{background:#FFF1D2;color:#5A3D00;border-radius:12px;padding:10px 12px;font-size:14px;display:flex;gap:8px}
+  .eyebrow{font-size:12px;letter-spacing:.08em;color:var(--mute);font-weight:700}
+  .sec{display:flex;flex-direction:column;gap:8px}
+  .sec h5{margin:0;font-size:14px;color:var(--mute);font-weight:700}
+  .counter{font-size:12px;color:var(--mute);text-align:right}
+  textarea.ta,input.in{width:100%;border:2px solid var(--line);border-radius:14px;padding:10px 12px;font:inherit;background:#fff;color:var(--ink);resize:none}
+  .prm{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width:1100px){
+    .wrap{grid-template-columns:200px minmax(0,1fr)}
+    .notes{grid-column:1/-1;border-left:0;border-top:1px solid var(--bench-line)}
+  }
+  @media (max-width:760px){
+    .wrap{grid-template-columns:1fr}
+    nav{border-right:0;border-bottom:1px solid var(--bench-line);display:flex;gap:2px;overflow-x:auto;padding:8px 12px}
+    nav h2{white-space:nowrap;margin:0 6px;align-self:center}
+    nav button{white-space:nowrap;width:auto}
+    nav small{display:none}
+    .stage{padding:16px 16px 24px}
+  }
+  @media (prefers-reduced-motion:reduce){.pin.warnp{animation:none}}
+</style>
+</head>
+<body>
+
+<!-- shared drawings: crayon-style child drawings used as the "character" -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="kid" viewBox="0 0 120 200">
+      <g fill="none" stroke="#E8553F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="60" cy="34" r="24" fill="#FFE2B8"/>
+        <path d="M60 58v70"/>
+        <path d="M60 78 L28 104 L18 130"/>
+        <path d="M60 78 L92 104 L104 132"/>
+        <path d="M60 128 L44 165 L40 192"/>
+        <path d="M60 128 L78 165 L84 192"/>
+      </g>
+      <g fill="#2B2A33"><circle cx="51" cy="30" r="3"/><circle cx="69" cy="30" r="3"/></g>
+      <path d="M50 42q10 8 20 0" fill="none" stroke="#2B2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M40 20q20-18 40 0" fill="none" stroke="#3E7CC9" stroke-width="7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="cat" viewBox="0 0 160 120">
+      <g fill="#F2C14E" stroke="#8B6BC7" stroke-width="6" stroke-linejoin="round">
+        <ellipse cx="90" cy="78" rx="52" ry="34"/>
+        <circle cx="42" cy="52" r="26"/>
+        <path d="M24 36 L20 10 L44 26Z M60 36 L64 10 L40 26Z"/>
+        <path d="M140 70q26-20 8-46" fill="none" stroke-linecap="round"/>
+      </g>
+      <g fill="#2B2A33"><circle cx="34" cy="50" r="3"/><circle cx="50" cy="50" r="3"/></g>
+      <path d="M36 60q6 6 12 0" fill="none" stroke="#2B2A33" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="photo" viewBox="0 0 300 400">
+      <rect width="300" height="400" fill="#B9AE9C"/>
+      <rect x="18" y="26" width="264" height="352" fill="#F7F1E4" transform="rotate(-3 150 200)"/>
+      <use href="#kid" x="80" y="60" width="140" height="240"/>
+      <rect x="205" y="330" width="70" height="60" fill="#8E7B62" opacity=".8"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <h1>inkstory 画面モック</h1>
+  <p>要件ドキュメント（DESIGN.md / issues）だけから起こした v1 の画面案。赤い番号 = 右の要件注釈に対応。 <span class="kbd">←</span> <span class="kbd">→</span> で画面を移動。</p>
+</header>
+
+<div class="wrap">
+<nav id="nav" aria-label="画面一覧"></nav>
+
+<div class="stage" id="stage">
+  <span class="route" id="route"></span>
+  <div class="scaler" id="scaler"></div>
+</div>
+
+<div class="notes" id="notes"></div>
+</div>
+
+<!-- =====================================================================
+     SCREENS. Each <article class="screen"> holds a .frame (the mock) and
+     a .note (requirement callouts). JS moves them into the layout.
+     ===================================================================== -->
+<div id="screens" hidden>
+
+<!-- 1. Library / characters -->
+<article class="screen" data-group="ライブラリ" data-title="ライブラリ（キャラ）" data-route="/">
+<div class="frame phone">
+  <div class="bar">
+    <span class="title">inkstory</span>
+    <button class="ib ghost pos" aria-label="設定">⚙<b class="c in" style="top:-2px;right:-2px">6</b></button>
+  </div>
+  <div class="body">
+    <div class="tabs pos"><span class="on">キャラ</span><span>えほん</span><b class="c">1</b></div>
+    <div class="card soft pos" style="display:flex;gap:12px;align-items:center">
+      <b class="c">5</b>
+      <div class="grow"><b>ホーム画面に追加できます</b><div class="mute tiny">共有 → 「ホーム画面に追加」でアプリのように使えます</div></div>
+      <button class="ib ghost" aria-label="閉じる">✕</button>
+    </div>
+    <a class="btn pri big pos" href="#">＋ あたらしい キャラを つくる<b class="c">2</b></a>
+    <div class="grid2">
+      <div class="card pos" style="padding:10px"><b class="c">3</b>
+        <div class="thumb"><svg><use href="#kid"/></svg></div>
+        <div class="row between" style="margin-top:8px"><b>いんくちゃん</b><span class="badge sample">サンプル</span></div>
+        <div class="mute tiny">ひとがた</div>
+      </div>
+      <div class="card pos" style="padding:10px"><b class="c">4</b>
+        <div class="thumb"><svg><use href="#cat"/></svg></div>
+        <div class="row between" style="margin-top:8px"><b>ねこ</b><button class="ib ghost" style="width:32px;height:32px" aria-label="メニュー">⋯</button></div>
+        <div class="mute tiny">そのまま うごく</div>
+      </div>
+      <div class="card" style="padding:10px">
+        <div class="thumb"><svg><use href="#kid"/></svg></div>
+        <div class="row between" style="margin-top:8px"><b>ゆうた</b><button class="ib ghost" style="width:32px;height:32px" aria-label="メニュー">⋯</button></div>
+        <div class="mute tiny">ひとがた</div>
+      </div>
+      <div class="card soft" style="padding:10px;display:flex;align-items:center;justify-content:center;text-align:center;min-height:170px">
+        <div class="mute tiny">えを かいたら<br>しゃしんを とってね</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>ライブラリ — キャラタブ</h3>
+  <p class="lead">アプリのホーム。作ったキャラとえほんを行き来する起点。</p>
+  <ol>
+    <li><b class="c">1</b><div>「キャラ」「えほん」の 2 タブ。中身が無いときは各タブに多言語化された空状態を出す。<small class="src">DESIGN §8.1 / issue 03-2</small></div></li>
+    <li><b class="c">2</b><div>「あたらしいキャラをつくる」で作成ウィザード <span class="src">/characters/new</span> へ。ジャーニー A の入口。<small class="src">DESIGN §3</small></div></li>
+    <li><b class="c">3</b><div>初回起動時にサンプルキャラ「いんくちゃん」とサンプルえほんが投入される。ユーザーが消したら再投入しない。<small class="src">issue 25-1,3</small></div></li>
+    <li><b class="c">4</b><div>カードのタップでステージ <span class="src">/characters/:id</span>。メニューから改名・削除。削除は対象名を明記した確認ダイアログ経由。<small class="src">DESIGN §10.5 / issue 26-5</small></div></li>
+    <li><b class="c">5</b><div>最初のキャラを保存した後に出るインストール誘導バナー。OS ごとの手順を示し、閉じたら二度と出さない。<small class="src">issue 23-5</small></div></li>
+    <li><b class="c">6</b><div>設定 <span class="src">/settings</span> へ。子どもがさわっても安全なように、破壊的操作はこの先の確認ダイアログの奥に置く。<small class="src">DESIGN §10.5</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 2. Library / books -->
+<article class="screen" data-group="ライブラリ" data-title="ライブラリ（えほん）" data-route="/">
+<div class="frame phone">
+  <div class="bar"><span class="title">inkstory</span><button class="ib ghost" aria-label="設定">⚙</button></div>
+  <div class="body">
+    <div class="tabs"><span>キャラ</span><span class="on">えほん</span></div>
+    <a class="btn sec big pos" href="#">＋ あたらしい えほん<b class="c">1</b></a>
+    <div class="grid2">
+      <div class="card pos" style="padding:10px"><b class="c">2</b>
+        <div class="canvas bg-meadow" style="aspect-ratio:3/4;border-radius:12px"><div class="actor"><svg><use href="#kid"/></svg></div></div>
+        <div class="row between" style="margin-top:8px"><b>いんくちゃんの いちにち</b></div>
+        <div class="row between"><span class="mute tiny">3 ページ</span><span class="badge sample">サンプル</span></div>
+      </div>
+      <div class="card pos" style="padding:10px"><b class="c">3</b>
+        <div class="canvas bg-night" style="aspect-ratio:3/4;border-radius:12px"><div class="actor"><svg><use href="#cat"/></svg></div></div>
+        <div class="row between" style="margin-top:8px"><b class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">はじめての えほん (2)</b><button class="ib ghost" style="width:32px;height:32px" aria-label="メニュー">⋯</button></div>
+        <div class="row between"><span class="mute tiny">5 ページ · さっき</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="scrim">
+    <div class="dialog pos"><b class="c">4</b>
+      <h4>「はじめての えほん (2)」を けしますか？</h4>
+      <p class="mute" style="margin:0">5 ページと ろくおんした こえも いっしょに きえます。もとに もどせません。</p>
+      <div class="row"><button class="btn line grow">やめる</button><button class="btn danger grow">けす</button></div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>ライブラリ — えほんタブ</h3>
+  <p class="lead">えほんのカード一覧。削除確認ダイアログの表示状態を重ねて示している。</p>
+  <ol>
+    <li><b class="c">1</b><div>「あたらしいえほん」で既定タイトル「はじめての えほん (n)」のえほんを作り、そのままエディタへ遷移。<small class="src">issue 18-1</small></div></li>
+    <li><b class="c">2</b><div>表紙 = 1 ページ目のキャラ + 背景（無ければプレースホルダ）。タップでエディタへ。<small class="src">issue 18-1</small></div></li>
+    <li><b class="c">3</b><div>タイトルはインライン改名（100 文字まで）。メニューから削除。<small class="src">DESIGN §7.1 / issue 18-1</small></div></li>
+    <li><b class="c">4</b><div>削除確認はタイトルとページ数を明記。ページ・ナレーション音声はカスケード削除される（子どもの誤操作対策）。<small class="src">issue 18-1 / 05 / DESIGN §10.5</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 3. Onboarding -->
+<article class="screen" data-group="ライブラリ" data-title="オンボーディング（初回）" data-route="/">
+<div class="frame phone">
+  <div class="bar"><span class="title">inkstory</span></div>
+  <div class="body" style="opacity:.35"><div class="tabs"><span class="on">キャラ</span><span>えほん</span></div><div class="grid2"><div class="card" style="height:170px"></div><div class="card" style="height:170px"></div></div></div>
+  <div class="scrim" style="align-items:flex-end;padding:0">
+    <div style="background:var(--paper);border-radius:28px 28px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));width:100%;display:flex;flex-direction:column;gap:12px">
+      <div class="row between"><b style="font-size:20px">ようこそ！</b><button class="btn pos" style="min-height:40px">スキップ<b class="c">4</b></button></div>
+      <div class="card pos" style="display:flex;gap:12px;align-items:center"><b class="c">1</b>
+        <div class="canvas bg-meadow" style="width:72px;height:72px;border-radius:14px;flex:none"><div class="actor"><svg><use href="#kid"/></svg></div></div>
+        <div class="grow"><h4>サンプルの えほんを みる</h4><div class="mute tiny">まずは いんくちゃんが うごくのを みてみよう</div></div><span>›</span>
+      </div>
+      <div class="card pos" style="display:flex;gap:12px;align-items:center"><b class="c">2</b>
+        <div style="width:72px;height:72px;border-radius:14px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;flex:none">📷</div>
+        <div class="grow"><h4>じぶんの えを うごかす</h4><div class="mute tiny">かみに かいた えを しゃしんに とるだけ</div></div><span>›</span>
+      </div>
+      <div class="card pos" style="display:flex;gap:12px;align-items:center"><b class="c">3</b>
+        <div style="width:72px;height:72px;border-radius:14px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;flex:none">🎤</div>
+        <div class="grow"><h4>こえを いれる</h4><div class="mute tiny">えほんの ページに おはなしを ろくおんできるよ</div></div><span>›</span>
+      </div>
+      <p class="mute tiny" style="margin:0;text-align:center">すべて この端末の中だけで動きます。アカウントも送信もありません。</p>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>オンボーディング</h3>
+  <p class="lead">初回の <span class="src">/</span> 訪問時だけ出るオーバーレイ。他の画面にモーダルの壁は作らない。</p>
+  <ol>
+    <li><b class="c">1</b><div>「サンプルを見る」→ サンプルえほんのプレイヤーへ直接遷移。<small class="src">issue 25-4</small></div></li>
+    <li><b class="c">2</b><div>「じぶんで作る」→ 作成ウィザードへ。<small class="src">issue 25-4</small></div></li>
+    <li><b class="c">3</b><div>「こえを入れる」→ ナレーション機能のヒント。サンプルえほんには録音が無く、家族の最初の活動として録音を促す。<small class="src">issue 25-2,4</small></div></li>
+    <li><b class="c">4</b><div>即座にスキップ可。閉じたら設定フラグに記録し二度と出さない。<small class="src">issue 25-4</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 4. Wizard: capture -->
+<article class="screen" data-group="つくる（ウィザード）" data-title="1. とりこみ" data-route="/characters/new">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost pos" aria-label="もどる">‹<b class="c">5</b></button><span class="title">しゃしんを とろう</span><span class="mute tiny">1 / 6</span></div>
+  <div class="steps pos"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><b class="c" style="right:120px">6</b></div>
+  <div class="body" style="justify-content:center;gap:18px">
+    <div class="card soft" style="text-align:center;padding:18px">
+      <div style="font-size:44px">✏️</div>
+      <div><b>かみに かいた えを うつしてね</b></div>
+      <div class="mute tiny">あかるい ばしょで、えを おおきく うつすと うまくいくよ</div>
+    </div>
+    <button class="btn pri big pos">📷 しゃしんを とる<b class="c">1</b></button>
+    <button class="btn sec big pos">🖼 しゃしんを えらぶ<b class="c">2</b></button>
+    <div class="card pos" style="display:flex;gap:10px;align-items:flex-start;border-color:#F3C9C2;background:#FFF3F1"><b class="c">3</b>
+      <span>😵</span><div><b>この しゃしんは おおきすぎるみたい</b><div class="mute tiny">40MB より ちいさい しゃしんを えらんでね</div></div>
+    </div>
+    <p class="mute tiny pos" style="margin:0;text-align:center">しゃしんは この端末の外に出ません。位置情報などの隠れた情報は取り込み時に消します。<b class="c b" style="right:auto;left:50%;transform:translateX(-50%)">4</b></p>
+  </div>
+</div>
+<div class="note">
+  <h3>ウィザード 1 — とりこみ（capture）</h3>
+  <p class="lead">状態機械 <span class="src">capture → crop → mask → rigType → joints → preview → saved</span> の最初のステップ。</p>
+  <ol>
+    <li><b class="c">1</b><div>「写真をとる」= ファイル入力（capture=environment）を大ボタンとして表示。対応環境ではライブプレビュー付きカメラモーダルに昇格し、失敗時はエラー無しでファイル入力へ静かにフォールバック。<small class="src">issue 06-2,3</small></div></li>
+    <li><b class="c">2</b><div>「しゃしんをえらぶ」= ギャラリー/ファイルからの選択。<small class="src">issue 06-2</small></div></li>
+    <li><b class="c">3</b><div>40MiB 超・8192px 超・非画像 MIME は、子どもに丁寧な文言で拒否。<small class="src">issue 06-4</small></div></li>
+    <li><b class="c">4</b><div>取り込み時に EXIF 向き補正 → 2048px 以下へ縮小 → PNG 再エンコードでメタデータを除去。元ファイルは保持しない。<small class="src">DESIGN §5.1, §10.3 / ADR-005</small></div></li>
+    <li><b class="c">5</b><div>戻るはすべてのステップで可。ウィザードを離れるときは確認後にドラフト破棄。<small class="src">DESIGN §5.1</small></div></li>
+    <li><b class="c">6</b><div>6 ステップの進捗表示（切り抜きキャラでは「かんせつ」がスキップされる）。各遷移は 3 秒以内。<small class="src">DESIGN §5.1, §9.4</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 5. Wizard: crop -->
+<article class="screen" data-group="つくる（ウィザード）" data-title="2. きりとり" data-route="/characters/new">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">えの まわりを かこもう</span><span class="mute tiny">2 / 6</span></div>
+  <div class="steps"><i class="done"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+  <div class="body" style="gap:12px">
+    <p class="mute tiny pos" style="margin:0">キャラクターの まわりを はこで かこんでね<b class="c l" style="left:auto;right:-4px">5</b></p>
+    <div class="canvas pos" style="aspect-ratio:3/4;background:#333"><b class="c">1</b>
+      <svg viewBox="0 0 300 400" style="width:100%;height:100%;display:block;transform:rotate(-2deg)"><use href="#photo"/></svg>
+      <div style="position:absolute;inset:8% 10% 12% 10%;border:3px solid #fff;box-shadow:0 0 0 999px rgba(0,0,0,.45)">
+        <div style="position:absolute;inset:0;background:linear-gradient(to right,transparent 33.3%,rgba(255,255,255,.5) 33.3%,rgba(255,255,255,.5) calc(33.3% + 1px),transparent 0,transparent 66.6%,rgba(255,255,255,.5) 66.6%,rgba(255,255,255,.5) calc(66.6% + 1px),transparent 0),linear-gradient(to bottom,transparent 33.3%,rgba(255,255,255,.5) 33.3%,rgba(255,255,255,.5) calc(33.3% + 1px),transparent 0,transparent 66.6%,rgba(255,255,255,.5) 66.6%,rgba(255,255,255,.5) calc(66.6% + 1px),transparent 0)"></div>
+        <i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;left:-12px;top:-12px"></i><i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;right:-12px;top:-12px"></i><i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;left:-12px;bottom:-12px"></i><i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;right:-12px;bottom:-12px"></i>
+        <i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;left:50%;top:-12px;margin-left:-12px"></i><i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;left:50%;bottom:-12px;margin-left:-12px"></i><i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;top:50%;left:-12px;margin-top:-12px"></i><i style="position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;top:50%;right:-12px;margin-top:-12px"></i>
+      </div>
+    </div>
+    <div class="row pos"><b class="c">2</b>
+      <button class="ib" aria-label="ひだりに 90°">↺</button>
+      <div class="grow col" style="gap:4px"><div class="row between tiny mute"><span>−15°</span><b style="color:var(--ink)">−2.0°</b><span>+15°</span></div><div class="slider"><em style="width:50%;left:43%"></em><i style="left:43%"></i></div></div>
+      <button class="ib" aria-label="みぎに 90°">↻</button>
+    </div>
+    <div class="row between mute tiny pos"><span>ピンチで ズーム / ドラッグで いどう</span><span>1024 × 1380 px</span><b class="c">4</b></div>
+  </div>
+  <div class="footer pos"><button class="btn line">もどる</button><button class="btn pri">つぎへ</button><b class="c">3</b></div>
+</div>
+<div class="note">
+  <h3>ウィザード 2 — きりとり（crop）</h3>
+  <p class="lead">写真に写り込んだ机や背景を減らす。マスクの精度に直結するので一級の手動ステップ。</p>
+  <ol>
+    <li><b class="c">1</b><div>画像は作業領域いっぱい。8 ハンドルの矩形（初期 90% 中央）、内部に三分割グリッド、下の画像はピンチ/ホイールでズーム・パン。ハンドルのヒット領域は 48px。<small class="src">issue 07-1,3,5</small></div></li>
+    <li><b class="c">2</b><div>90° 左右回転ボタン + ±15°（0.5° 刻み）の微調整スライダー。回転はクロップより先に適用し、矩形は画面に対して常に水平。<small class="src">issue 07-2</small></div></li>
+    <li><b class="c">3</b><div>「もどる」= 取り込みへ（画像は破棄）。「つぎへ」= 切り抜き済み画像を持ってマスクへ。<small class="src">issue 07-7</small></div></li>
+    <li><b class="c">4</b><div>最小 128×128px。出力の長辺は再度 2048px 以下に丸める。キーボードでは矢印 1px / Shift+矢印 10px で移動。<small class="src">issue 07-3,4,5</small></div></li>
+    <li><b class="c">5</b><div>多言語化されたヘルプ文「キャラクターのまわりをはこでかこんでね」。<small class="src">issue 07-6</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 6. Wizard: mask -->
+<article class="screen" data-group="つくる（ウィザード）" data-title="3. きりぬき（マスク）" data-route="/characters/new">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">えを きりぬこう</span><span class="mute tiny">3 / 6</span></div>
+  <div class="steps"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i><i></i></div>
+  <div class="body" style="gap:10px">
+    <div class="row between pos"><b class="c">2</b>
+      <div class="row" style="gap:6px"><button class="ib" aria-label="とりけし">↶</button><button class="ib" aria-label="やりなおし" disabled>↷</button></div>
+      <span class="chip">👁 きりぬきを みる</span>
+    </div>
+    <div class="canvas pos" style="aspect-ratio:3/4;background:#F7F1E4"><b class="c">1</b>
+      <svg viewBox="0 0 120 200" style="position:absolute;inset:8% 20%;width:60%;height:84%"><use href="#kid"/>
+        <path class="ants" d="M60 6c18 0 30 12 30 28 0 10-6 18-14 24l16 44 12 30-8 6-16-38 4 26-8 60 8 4v8h-22l-2-70-2 70h-22v-8l8-4-8-60 4-26-16 38-8-6 12-30 16-44C36 52 30 44 30 34 30 18 42 6 60 6z"/>
+      </svg>
+      <div class="badge auto" style="position:absolute;left:10px;top:10px">じどうで きりぬいたよ</div>
+    </div>
+    <div class="row between pos"><b class="c">3</b>
+      <div class="seg"><span class="on">✚ ふやす</span><span>✂ けす</span></div>
+      <div class="seg"><span>S</span><span class="on">M</span><span>L</span></div>
+    </div>
+    <div class="card soft pos" style="padding:10px 12px"><b class="c">4</b>
+      <div class="row between"><b class="tiny">もういちど じどうで</b><button class="btn" style="min-height:36px;font-size:14px">やりなおす</button></div>
+      <div class="row tiny mute" style="margin-top:6px"><span>うすい</span><div class="slider grow"><em style="width:50%"></em><i style="left:50%"></i></div><span>こい</span></div>
+    </div>
+  </div>
+  <div class="footer"><button class="btn line">もどる</button><button class="btn pri">つぎへ</button></div>
+  <div class="toast pos"><b class="c">5</b><span>😢 えが みつからなかったよ。<b>ふでで なぞって</b> おしえてね</span></div>
+</div>
+<div class="note">
+  <h3>ウィザード 3 — マスク</h3>
+  <p class="lead">自動セグメンテーションの結果をブラシで直す。失敗時のトースト表示を重ねている。</p>
+  <ol>
+    <li><b class="c">1</b><div>入場時に Worker で自動切り抜き（進捗スピナー、2048² で 2 秒以内）。絵は不透明、マスクは 50% ティント + 動く破線（reduced-motion では静止）。<small class="src">DESIGN §5.2, §5.3 / issue 09-1,2</small></div></li>
+    <li><b class="c">2</b><div>取り消し/やり直し 20 段以上。「きりぬきをみる」で市松模様上の切り抜きプレビューに切替。<small class="src">issue 09-2,3</small></div></li>
+    <li><b class="c">3</b><div>ブラシは 追加/消去、サイズ S/M/L（ズームに相対）。指・ペン・マウス対応、2 本指でパン/ズーム。<small class="src">issue 09-3</small></div></li>
+    <li><b class="c">4</b><div>「もう一回自動」+ 感度スライダー。再実行も取り消し可能。<small class="src">issue 09-4</small></div></li>
+    <li><b class="c">5</b><div>最大成分が 2% 未満 / 98% 超のときは「みつからなかった」ヒントを出し、空のマスク + ブラシ選択状態で開く。絵は決して拒否しない（G2）。<small class="src">DESIGN §2.2, §5.2 / issue 09-1</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 7. Wizard: rigType -->
+<article class="screen" data-group="つくる（ウィザード）" data-title="4. うごきかた" data-route="/characters/new">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">どうやって うごかす？</span><span class="mute tiny">4 / 6</span></div>
+  <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <div class="body" style="justify-content:center;gap:14px">
+    <div class="card pos" style="border:3px solid var(--blue);display:flex;gap:12px;align-items:center"><b class="c">1</b>
+      <div class="thumb" style="width:96px;flex:none"><svg><use href="#kid"/></svg></div>
+      <div class="grow"><h4>うごく からだが ある<br><span class="mute tiny">（ひとがた）</span></h4><div class="mute tiny">て・あし・あたまが ある えに。ダンスや さんぽが できるよ</div><div class="row" style="margin-top:6px"><span class="badge auto pos">おすすめ<b class="c" style="right:-16px">3</b></span></div></div>
+    </div>
+    <div class="card pos" style="display:flex;gap:12px;align-items:center"><b class="c">2</b>
+      <div class="thumb" style="width:96px;flex:none"><svg><use href="#cat"/></svg></div>
+      <div class="grow"><h4>そのまま うごかす</h4><div class="mute tiny">どうぶつ・くるま・おばけ、なんでも OK。ふわふわ・ゆらゆら うごくよ</div></div>
+    </div>
+    <p class="mute tiny pos" style="margin:0;text-align:center">あとから かえられないので、まよったら「そのまま うごかす」でも だいじょうぶ<b class="c b" style="left:50%;right:auto;transform:translateX(-50%)">4</b></p>
+  </div>
+  <div class="footer"><button class="btn line">もどる</button><button class="btn pri">つぎへ</button></div>
+</div>
+<div class="note">
+  <h3>ウィザード 4 — うごきかた（rigType）</h3>
+  <p class="lead">人型（スケルトン）か切り抜き（エフェクトのみ）かを 2 枚のカードで選ぶ。</p>
+  <ol>
+    <li><b class="c">1</b><div>「うごくからだがある（ひとがた）」= humanoid。以降「かんせつ」ステップへ。<small class="src">DESIGN §5.1 / issue 09-6</small></div></li>
+    <li><b class="c">2</b><div>「そのままうごかす」= cutout。かんせつをスキップしてプレビューへ。どんな絵も拒否しない（G2）。<small class="src">DESIGN §2.2, §6.4</small></div></li>
+    <li><b class="c">3</b><div>姿勢モデルが自信ありのキーポイントを返したときだけ「ひとがた」を既定選択。モデル無し・低信頼なら既定なし（明示的に選ばせる）。モデルが無くても完全に動く。<small class="src">issue 09-6 / ADR-004</small></div></li>
+    <li><b class="c">4</b><div>非技術者の親向けの説明文。用語は子ども向けの平仮名。<small class="src">DESIGN §3 / §8.7</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 8. Wizard: joints -->
+<article class="screen" data-group="つくる（ウィザード）" data-title="5. かんせつ" data-route="/characters/new">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">てんを からだに のせよう</span><span class="mute tiny">5 / 6</span></div>
+  <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
+  <div class="body" style="gap:10px">
+    <div class="row between pos"><b class="c" style="top:-10px;right:4px">4</b>
+      <span class="badge auto">じどうで おいたよ</span>
+      <div class="row" style="gap:6px"><button class="btn" style="min-height:40px;font-size:14px">テンプレに もどす</button><button class="btn" style="min-height:40px;font-size:14px">もういちど じどう</button></div>
+    </div>
+    <div class="canvas pos" style="aspect-ratio:3/4;background:#F7F1E4"><b class="c">1</b>
+      <svg viewBox="0 0 120 200" style="position:absolute;inset:8% 20%;width:60%;height:84%"><use href="#kid" opacity=".9"/>
+        <g stroke="#3E7CC9" stroke-width="2.5" fill="none" stroke-linecap="round">
+          <path d="M60 40 L60 58 L60 92 L60 128"/>
+          <path d="M60 58 L38 62 L28 104 L18 130"/>
+          <path d="M60 58 L82 62 L92 104 L104 132"/>
+          <path d="M60 128 L50 130 L44 165 L40 192"/>
+          <path d="M60 128 L70 130 L78 165 L84 192"/>
+        </g>
+      </svg>
+      <!-- pins: percent positions within canvas -->
+      <span class="pin" style="left:50%;top:24.8%">あ</span>
+      <span class="pin" style="left:50%;top:32.4%">く</span>
+      <span class="pin" style="left:50%;top:46.6%"></span>
+      <span class="pin" style="left:50%;top:61.8%">こ</span>
+      <span class="pin" style="left:39%;top:34%"></span><span class="pin" style="left:34%;top:51.7%"></span>
+      <span class="pin sel pos" style="left:29%;top:62.6%">て<b class="c" style="right:-22px;top:-12px">2</b></span>
+      <span class="pin" style="left:61%;top:34%"></span><span class="pin" style="left:66%;top:51.7%"></span><span class="pin" style="left:72%;top:63.4%">て</span>
+      <span class="pin" style="left:45%;top:62.6%"></span><span class="pin" style="left:42%;top:77.3%"></span><span class="pin warnp pos" style="left:40%;top:88.6%">あし<b class="c" style="left:-24px;right:auto;top:-12px">3</b></span>
+      <span class="pin" style="left:55%;top:62.6%"></span><span class="pin" style="left:58%;top:77.3%"></span><span class="pin" style="left:61%;top:88.6%">あし</span>
+      <!-- loupe -->
+      <div style="position:absolute;left:8px;top:8px;width:96px;height:96px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);background:#F7F1E4;overflow:hidden"><svg viewBox="0 0 120 200" style="position:absolute;width:240px;height:400px;left:-30px;top:-210px"><use href="#kid"/></svg><span class="pin sel" style="left:50%;top:50%">て</span></div>
+    </div>
+    <div class="warnbar pos"><b class="c">3</b><span>⚠</span><span>「みぎあし」の てんが えの そとに あるよ（そのままでも すすめるよ）</span></div>
+    <div class="row between mute tiny"><span>えらんでいる てん: <b style="color:var(--ink)">みぎて</b> — ドラッグ か 矢印キーで うごかす</span><span class="badge">👤 みぎ = がめんの ひだり</span></div>
+  </div>
+  <div class="footer"><button class="btn line">もどる</button><button class="btn pri">つぎへ</button></div>
+</div>
+<div class="note">
+  <h3>ウィザード 5 — かんせつ（joints）</h3>
+  <p class="lead">16 個の関節ピンを絵の上に置く。姿勢モデルが無くても必ず通れる「保証された経路」。</p>
+  <ol>
+    <li><b class="c">1</b><div>切り抜きの上に 16 ピン + 15 本の骨線。ピンのヒット領域 44px、ラベルは子ども向け（「みぎて」など）。ズーム/パンはマスク編集と共通。<small class="src">DESIGN §5.5 / issue 12-4</small></div></li>
+    <li><b class="c">2</b><div>ピンかリスト項目のタップで選択。選択中はドラッグ・矢印キーで移動し、ドラッグ中は拡大鏡（ルーペ）を出す。<small class="src">issue 12-4</small></div></li>
+    <li><b class="c">3</b><div>検証警告は非ブロッキング：マスク外のピン、胴体線をまたぐ左右の手足。脈打つ枠 + 一覧で示すが「つぎへ」は止めない。<small class="src">DESIGN §5.5 / issue 12-5</small></div></li>
+    <li><b class="c">4</b><div>モデルの平均信頼度 ≥0.3 なら自動配置 + 「じどう」バッジ。それ以外はテンプレ姿勢で仮置きし「てんをからだにのせてね」トースト。「テンプレに戻す」は常に利用可。右 = キャラの右（画面左）を小さなアバターで示す。<small class="src">DESIGN §5.4 / issue 12-2,3 / ADR-004</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 9. Wizard: preview -->
+<article class="screen" data-group="つくる（ウィザード）" data-title="6. プレビュー → ほぞん" data-route="/characters/new">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">うごいた！</span><span class="mute tiny">6 / 6</span></div>
+  <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i></div>
+  <div class="body" style="gap:12px">
+    <div class="canvas pos bg-meadow" style="aspect-ratio:3/4"><b class="c">1</b>
+      <div class="actor"><svg style="transform:rotate(-4deg)"><use href="#kid"/></svg></div>
+      <div class="badge" style="position:absolute;left:10px;top:10px;background:#fff">👋 てをふる</div>
+    </div>
+    <div class="sec pos"><b class="c">2</b><h5>なまえ</h5><input class="in" id="charName" value="ゆうた" maxlength="50"><div class="counter">3 / 50</div></div>
+  </div>
+  <div class="footer pos"><b class="c">3</b><button class="btn line">てんを なおす</button><button class="btn pri">これで いい！</button></div>
+  <div class="scrim">
+    <div class="dialog pos"><b class="c">4</b>
+      <h4>つくるのを やめますか？</h4>
+      <p class="mute" style="margin:0">ここまでの さぎょうは ほぞんされません。</p>
+      <div class="row"><button class="btn line grow">つづける</button><button class="btn danger grow">やめる</button></div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>ウィザード 6 — プレビュー / 保存</h3>
+  <p class="lead">リグを組んで「てをふる」クリップで動作確認。離脱確認ダイアログを重ねて示している。</p>
+  <ol>
+    <li><b class="c">1</b><div>人型はスケルトンで wave クリップを再生（絵の比率はそのまま = 「絵にそっくり」保証）。切り抜きは float エフェクト。リグ生成は 1 秒以内。<small class="src">DESIGN §5.1, §5.6, §6.2</small></div></li>
+    <li><b class="c">2</b><div>キャラ名（50 文字まで、スキーマ上限を入力側でも強制）。<small class="src">DESIGN §7.1</small></div></li>
+    <li><b class="c">3</b><div>受け入れ = Character を保存（サムネ 256px 生成）→ ステージへ。戻る = 前ステップへ。<small class="src">DESIGN §5.1 / issue 12-6</small></div></li>
+    <li><b class="c">4</b><div>ウィザードを離れる操作は確認ダイアログ経由で、メモリ上のドラフトを破棄。初回保存で <span class="src">storage.persist()</span> を要求。<small class="src">DESIGN §5.1, §7.2</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 10. Stage -->
+<article class="screen" data-group="ステージ" data-title="ステージ（うごかす）" data-route="/characters/:id">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">ゆうた</span><button class="ib pos" aria-label="ぜんがめん">⛶<b class="c">5</b></button></div>
+  <div class="body" style="gap:12px">
+    <div class="canvas pos bg-meadow" style="aspect-ratio:1"><b class="c">1</b>
+      <div class="actor" style="top:12%;height:76%"><svg><use href="#kid"/></svg></div>
+      <span style="position:absolute;left:18%;top:20%;color:#fff;font-size:18px">✦</span><span style="position:absolute;left:70%;top:34%;color:#fff;font-size:12px">✦</span><span style="position:absolute;left:26%;top:60%;color:#fff;font-size:14px">✦</span>
+    </div>
+    <div class="sec pos"><b class="c">2</b><h5>うごき</h5>
+      <div class="rail">
+        <div class="thumb on"><svg><use href="#kid"/></svg>いき</div>
+        <div class="thumb"><svg><use href="#kid"/></svg>てをふる</div>
+        <div class="thumb"><svg><use href="#kid"/></svg>あるく</div>
+        <div class="thumb"><svg><use href="#kid"/></svg>はしる</div>
+        <div class="thumb"><svg><use href="#kid"/></svg>ジャンプ</div>
+        <div class="thumb"><svg><use href="#kid"/></svg>ダンス</div>
+      </div>
+    </div>
+    <div class="sec pos"><b class="c">3</b><h5>はいけい</h5>
+      <div class="bgs"><i class="bg-meadow on"></i><i class="bg-sky"></i><i class="bg-sea"></i><i class="bg-night"></i><i class="bg-forest"></i><i class="bg-castle"></i><i class="bg-snow"></i><i class="bg-space"></i><i class="bg-cream" style="border-color:var(--line)"></i><i class="bg-pink"></i><i class="bg-mint"></i><i class="bg-lemon"></i></div>
+    </div>
+    <div class="sec pos"><b class="c">4</b><h5>きらきら・ゆらゆら</h5>
+      <div class="row wrap"><span class="chip on">✦ きらきら · よわ</span><span class="chip">ふわふわ</span><span class="chip">ゆらゆら</span><span class="chip">ぽよん</span><span class="chip">かみふぶき</span><span class="chip">あわ</span></div>
+    </div>
+    <div class="row between pos"><b class="c">6</b><span class="mute tiny">はやさ</span><div class="seg"><span>0.5×</span><span class="on">1×</span><span>2×</span></div></div>
+  </div>
+</div>
+<div class="note">
+  <h3>ステージモード</h3>
+  <p class="lead">1 枚の絵をすぐ動かして遊ぶ画面。ジャーニー A の終点。</p>
+  <ol>
+    <li><b class="c">1</b><div>背景（cover）+ 中央 60% 帯にキャラ + パーティクル層。回転/リサイズでレターボックス、歪めない。既定モーションは idle_breathe（切り抜きは float）。<small class="src">DESIGN §6.6, §8.4 / issue 16-1</small></div></li>
+    <li><b class="c">2</b><div>横スクロールのモーションレール（サムネ + 多言語名）。v1 は 10 クリップ。切替時 200ms でポーズをクロスフェード。切り抜きキャラではこの列を隠しエフェクトを前面に。<small class="src">DESIGN §6.3 / issue 16-2,7</small></div></li>
+    <li><b class="c">3</b><div>背景 12 種 = オリジナルのフラットイラスト 8（草原・空・海・夜・森・城・雪・宇宙）+ 無地 4 色。<small class="src">DESIGN §8.4 / issue 16-3</small></div></li>
+    <li><b class="c">4</b><div>エフェクトチップ（off / よわ / つよ = 0 / 0.4 / 0.8）。同時 3 個まで。キャラごとに設定を保存。reduced-motion では強度 0 + パーティクル無効。<small class="src">DESIGN §6.4 / issue 16-4, 17-6</small></div></li>
+    <li><b class="c">5</b><div>全画面（iOS はクローム非表示で代替）+ 画面ウェイクロック。戻ると同じ状態に復帰。<small class="src">issue 16-5</small></div></li>
+    <li><b class="c">6</b><div>再生速度 0.5× / 1× / 2×。<small class="src">DESIGN §6.5 / issue 16-6</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 11. Book editor (tablet) -->
+<article class="screen" data-group="えほん" data-title="えほんエディタ" data-route="/books/:id/edit">
+<div class="frame tablet">
+  <div class="bar pos" style="border-bottom:1px solid var(--line)"><b class="c in" style="top:14px;right:auto;left:60px">1</b>
+    <button class="ib ghost" aria-label="もどる">‹</button>
+    <span class="title" style="flex:0 1 auto;border-bottom:2px dashed var(--line)">いんくちゃんの いちにち ✎</span>
+    <span class="status ok">✓ ほぞんずみ</span>
+    <span class="grow"></span>
+    <button class="btn sec">▶ さいせい</button>
+  </div>
+  <div style="display:flex;flex:1;min-height:0">
+    <div class="pos" style="width:150px;border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:10px;overflow:auto;background:var(--paper-2)"><b class="c in" style="right:4px;top:4px">2</b>
+      <div class="canvas bg-meadow" style="aspect-ratio:3/4;border-radius:10px;font-size:8px"><div class="actor"><svg><use href="#kid"/></svg></div><div class="textpanel" style="padding:4px;border-radius:6px">こんにちは！</div><span class="badge" style="position:absolute;left:4px;top:4px;background:#fff;font-size:10px">1</span></div>
+      <div class="canvas bg-sky" style="aspect-ratio:3/4;border-radius:10px;border:3px solid var(--blue);font-size:8px"><div class="actor"><svg><use href="#kid"/></svg></div><div class="textpanel" style="padding:4px;border-radius:6px">じゃんぷ！</div><span class="badge" style="position:absolute;left:4px;top:4px;background:#fff;font-size:10px">2</span></div>
+      <div class="canvas bg-night" style="aspect-ratio:3/4;border-radius:10px;font-size:8px"><div class="actor"><svg><use href="#kid"/></svg></div><div class="textpanel" style="padding:4px;border-radius:6px">おやすみ…</div><span class="badge" style="position:absolute;left:4px;top:4px;background:#fff;font-size:10px">3</span></div>
+      <button class="btn line" style="min-height:56px;border-style:dashed">＋ ページ</button>
+      <span class="mute tiny" style="text-align:center">ながおしで ならべかえ</span>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;gap:16px;padding:14px 16px;overflow:auto">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+        <div class="sec pos"><b class="c">3</b><h5>キャラ</h5>
+          <div class="row wrap"><div class="thumb" style="width:64px;border-radius:12px"><svg><use href="#cat"/></svg></div><div class="thumb" style="width:64px;border-radius:12px;border:3px solid var(--blue)"><svg><use href="#kid"/></svg></div><div class="thumb" style="width:64px;border-radius:12px"><svg><use href="#kid"/></svg></div><div class="thumb" style="width:64px;border-radius:12px;font-size:11px;font-weight:700;color:var(--mute)">なし</div></div>
+        </div>
+        <div class="sec"><h5>はいけい</h5><div class="bgs" style="grid-template-columns:repeat(12,1fr)"><i class="bg-meadow"></i><i class="bg-sky on"></i><i class="bg-sea"></i><i class="bg-night"></i><i class="bg-forest"></i><i class="bg-castle"></i><i class="bg-snow"></i><i class="bg-space"></i><i class="bg-cream" style="border-color:var(--line)"></i><i class="bg-pink"></i><i class="bg-mint"></i><i class="bg-lemon"></i></div></div>
+        <div class="sec pos"><b class="c">4</b><h5>おはなし</h5><textarea class="ta" id="pageText" rows="3" maxlength="500">いんくちゃんは そらに むかって おおきく じゃんぷ！</textarea><div class="counter">27 / 500</div></div>
+        <div class="sec pos"><b class="c">5</b><h5>うごき</h5>
+          <div class="row wrap"><span class="chip sug on">ジャンプ <span class="tag">おすすめ</span></span><span class="chip sug">はしる <span class="tag">おすすめ</span></span><span class="chip">いき</span><span class="chip">てをふる</span><span class="chip">あるく</span><span class="chip">ダンス1</span><span class="chip">ダンス2</span><span class="chip">まわる</span><span class="chip">すわる</span><span class="chip">ばんざい</span></div>
+        </div>
+        <div class="sec"><h5>きらきら（3つまで）</h5><div class="row wrap"><span class="chip on">✦ きらきら</span><span class="chip">かみふぶき</span><span class="chip">あわ</span><span class="chip">ふわふわ</span><span class="chip">ゆらゆら</span></div></div>
+        <div class="sec pos"><b class="c">6</b><h5>こえ</h5><div class="card" style="display:flex;gap:12px;align-items:center;padding:10px 12px"><button class="rec" style="width:48px;height:48px">●</button><div class="grow"><b>まだ ろくおんしていません</b><div class="mute tiny">60 びょうまで ろくおんできます</div></div></div></div>
+        <div class="sec pos"><b class="c">7</b><h5>ページの めくりかた</h5><div class="seg"><span class="on">タップで</span><span>じどうで</span></div></div>
+      </div>
+      <div class="pos" style="width:300px;flex:none"><b class="c">8</b>
+        <div class="canvas bg-sky" style="aspect-ratio:3/4;border-radius:14px;position:sticky;top:0">
+          <div class="actor"><svg style="transform:translateY(-8px)"><use href="#kid"/></svg></div>
+          <span style="position:absolute;left:22%;top:22%;color:#fff">✦</span><span style="position:absolute;left:72%;top:30%;color:#fff;font-size:12px">✦</span>
+          <div class="textpanel" style="font-size:13px">いんくちゃんは そらに むかって おおきく じゃんぷ！</div>
+          <div class="pagedots"><i></i><i class="on"></i><i></i></div>
+        </div>
+        <p class="mute tiny" style="text-align:center;margin:8px 0 0">プレビュー（じっさいの 40%）</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>えほんエディタ + ページコンポーザー</h3>
+  <p class="lead">左にページレール、右に選択ページのコンポーザー。保存ボタンは無く全て自動保存。</p>
+  <ol>
+    <li><b class="c">1</b><div>上部バー：戻る、タイトルのインライン編集（100 文字）、自動保存の「ほぞんずみ」表示、再生（ページ 0 のとき無効）。<small class="src">issue 18-2,4</small></div></li>
+    <li><b class="c">2</b><div>ページレール：サムネ（144px、内容変更で 1 秒デバウンス再描画）、選択中を強調、ページ追加（既定 = 無地クリーム・本文なし・キャラなし）、長押し/ケバブで削除（確認あり）、指とポインタでドラッグ並べ替え。<small class="src">issue 18-3</small></div></li>
+    <li><b class="c">3</b><div>コンポーザーの順序は固定：キャラ（風景だけのページ用に「なし」あり）→ 背景 → 本文 → うごき → きらきら → こえ → めくりかた。<small class="src">DESIGN §8.2 / issue 19-2</small></div></li>
+    <li><b class="c">4</b><div>本文 500 文字まで + カウンタ。文字数で 3 段階の自動フォントサイズ（≤80 / ≤200 / ≤500）、システムの丸ゴシック系のみ。<small class="src">issue 19-2,5</small></div></li>
+    <li><b class="c">5</b><div>「おすすめ」バッジ付きの提案チップを先頭に（本文のキーワード一致で最大 4 件、AI 不使用・完全オフライン）、続けて全クリップをカテゴリ順に。本文変更で 300ms 後に再計算するが、ユーザーが明示的に選んだモーションは上書きしない。切り抜きキャラ/キャラなしではこの枠がエフェクトに置き換わる。<small class="src">DESIGN §8.3 / issue 19-1,2,3</small></div></li>
+    <li><b class="c">6</b><div>ナレーション枠（次の画面で 3 状態を詳述）。<small class="src">DESIGN §8.5 / issue 20</small></div></li>
+    <li><b class="c">7</b><div>めくり方：タップ / 自動（ナレーション終了 +1 秒、無音なら 6 秒）。<small class="src">DESIGN §8.6</small></div></li>
+    <li><b class="c">8</b><div>固定レイアウト（背景全面・中央 60% 帯にキャラ・下 25% にテキストパネル・ページドット）を約 40% で実寸プレビュー。プレイヤーと同じ PageView コンポーネント。自由配置・複数キャラは v2。<small class="src">DESIGN §8.4, §2.3 / issue 19-4</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 12. Narration panel states -->
+<article class="screen" data-group="えほん" data-title="ナレーション録音（3状態）" data-route="/books/:id/edit">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">こえを いれる</span></div>
+  <div class="body" style="gap:14px">
+    <div class="eyebrow">A. まだ ない</div>
+    <div class="card pos" style="display:flex;gap:12px;align-items:center"><b class="c">1</b><button class="rec">●</button><div class="grow"><b>ろくおんする</b><div class="mute tiny">60 びょうまで</div></div></div>
+
+    <div class="eyebrow">B. ろくおんちゅう</div>
+    <div class="card pos" style="display:flex;flex-direction:column;gap:10px;border-color:#F3C9C2"><b class="c">2</b>
+      <div class="row"><span class="dot" style="background:var(--red);box-shadow:0 0 0 4px rgba(232,85,63,.25)"></span><b>ろくおんちゅう…</b><span class="grow"></span><b style="font-variant-numeric:tabular-nums">0:12 / 1:00</b></div>
+      <div class="lvl"><i style="height:20%"></i><i style="height:45%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:95%"></i><i style="height:50%"></i><i style="height:30%"></i><i style="height:70%"></i><i style="height:40%"></i><i style="height:85%"></i><i style="height:55%"></i><i style="height:25%"></i><i style="height:65%"></i><i style="height:35%"></i><i style="height:50%"></i><i style="height:15%"></i><i style="height:40%"></i><i style="height:60%"></i></div>
+      <div class="row between"><span class="warnbar tiny" style="padding:6px 10px">あと 5 びょう</span><button class="rec stop">■ とめる</button></div>
+    </div>
+
+    <div class="eyebrow">C. ろくおんずみ</div>
+    <div class="card pos" style="display:flex;flex-direction:column;gap:10px"><b class="c">3</b>
+      <div class="row"><button class="ib sec" style="background:var(--blue);color:#fff;border-radius:50%">▶</button><div class="grow"><div class="meter"><i style="width:35%"></i></div></div><b style="font-variant-numeric:tabular-nums">0:23</b></div>
+      <div class="row"><button class="btn line grow" style="min-height:44px;font-size:14px">とりなおす</button><button class="btn danger grow" style="min-height:44px;font-size:14px">けす</button></div>
+    </div>
+
+    <div class="card soft pos tiny"><b class="c">5</b>🙅 この ブラウザでは ろくおんできません。こえが なくても えほんは つくれます。</div>
+  </div>
+  <div class="scrim">
+    <div class="dialog pos"><b class="c">4</b>
+      <div style="font-size:40px;text-align:center">🎤</div>
+      <h4 style="text-align:center">マイクを つかって おはなしを ろくおん するよ</h4>
+      <p class="mute tiny" style="margin:0;text-align:center">つぎに ブラウザが きいてくるので「ゆるす」を えらんでね。ろくおんは この端末にだけ ほぞんされます。</p>
+      <div class="row"><button class="btn line grow">やめる</button><button class="btn pri grow">OK</button></div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>ナレーション録音パネル</h3>
+  <p class="lead">コンポーザー内の「こえ」枠の 3 状態と、初回のマイク許可の事前説明。</p>
+  <ol>
+    <li><b class="c">1</b><div>空状態：録音ボタンのみ。押しても許可を取るのは事前説明の後。<small class="src">issue 20-2,3</small></div></li>
+    <li><b class="c">2</b><div>録音中：脈打つインジケータ、ライブレベルメーター（12fps）、経過/上限、停止。60 秒で強制停止、残り 5 秒でカウントダウン警告。<small class="src">DESIGN §8.5 / issue 20-1,3</small></div></li>
+    <li><b class="c">3</b><div>録音済み：再生/一時停止、長さ、録り直し（確認あり）、削除（確認あり）。コンポーザー内で自動再生はしない。<small class="src">issue 20-3,5</small></div></li>
+    <li><b class="c">4</b><div>初回タップで事前説明カード → 確認後に実際の許可要求（ユーザー操作の連鎖を維持）。拒否時は OS 別の再有効化手順を非ブロッキングに案内し、パネルは使える状態を保つ。<small class="src">DESIGN §10.3 B1 / issue 20-2</small></div></li>
+    <li><b class="c">5</b><div>MediaRecorder 非対応ブラウザでは「ろくおんできません」注記。えほんは声なしでも成立。<small class="src">issue 20-7</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 13. Player -->
+<article class="screen" data-group="えほん" data-title="えほんプレイヤー（キッズモード）" data-route="/books/:id/play">
+<div class="frame phone bg-sky pos">
+  <div class="actor pos" style="top:20%;height:55%"><b class="c" style="right:-16px">2</b><svg style="transform:translateY(-10px)"><use href="#kid"/></svg></div>
+  <span style="position:absolute;left:18%;top:22%;color:#fff;font-size:22px">✦</span><span style="position:absolute;left:76%;top:34%;color:#fff;font-size:14px">✦</span><span style="position:absolute;left:30%;top:64%;color:#fff;font-size:16px">✦</span>
+  <div class="textpanel pos" style="font-size:20px;bottom:9%"><b class="c">3</b>いんくちゃんは そらに むかって おおきく じゃんぷ！</div>
+  <div class="pagedots" style="bottom:4%"><i></i><i class="on"></i><i></i></div>
+  <div class="pos" style="position:absolute;right:14px;top:14px"><b class="c">1</b><div class="ring"><i>✕</i></div></div>
+  <div style="position:absolute;left:12px;top:22px;background:rgba(0,0,0,.35);color:#fff;font-size:12px;padding:4px 8px;border-radius:8px">🔊 こえ さいせいちゅう</div>
+  <div class="pos" style="position:absolute;left:50%;bottom:26%;transform:translateX(-50%);background:rgba(0,0,0,.35);color:#fff;font-size:13px;padding:6px 12px;border-radius:999px;white-space:nowrap"><b class="c">4</b>がめんを タップで つぎへ →</div>
+</div>
+<div class="note">
+  <h3>えほんプレイヤー（キッズモード）</h3>
+  <p class="lead">全画面・読み取り専用。子どもが一人で操作しても安全なように UI をほぼ持たない。</p>
+  <ol>
+    <li><b class="c">1</b><div>唯一のクローム = 半透明の隅の終了ボタン。<b>1 秒長押し</b>（進捗リング、可能なら振動）でのみ終了。誤タップは最大でもページ送りにしかならない。ブラウザ戻るは終了扱い（親の操作）。<small class="src">DESIGN §8.6, §10.5 / issue 21-3,7</small></div></li>
+    <li><b class="c">2</b><div>ページ内：モーションはループ、ナレーションは 1 回。遷移は 300ms スライド（reduced-motion では 150ms フェード）、落ち着いてからモーション開始、その 300ms 後にナレーション。全画面 + ウェイクロック。<small class="src">DESIGN §8.6 / issue 21-2,4,6</small></div></li>
+    <li><b class="c">3</b><div>固定レイアウト（エディタと同じ PageView）。キャラ・クリップ・背景が欠けても在るものだけ描画して静かに続行。<small class="src">DESIGN §8.4 / issue 21-8</small></div></li>
+    <li><b class="c">4</b><div>進む = 画面どこでもタップ（既定）または自動（ナレーション終了 +1 秒 / 無音 6 秒）。左右スワイプ（幅 25%）で前後。タッチ領域は 64px 以上。外部リンク・ダイアログ・自動再生音声は一切なし。<small class="src">DESIGN §8.6, §8.7 / issue 21-1,3</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 14. Player end -->
+<article class="screen" data-group="えほん" data-title="おしまい" data-route="/books/:id/play">
+<div class="frame phone bg-night pos">
+  <div class="actor" style="top:16%;height:50%;opacity:.5"><svg><use href="#kid"/></svg></div>
+  <div class="scrim" style="background:rgba(30,42,90,.55)">
+    <div class="pos" style="text-align:center;color:#fff;display:flex;flex-direction:column;gap:18px;align-items:center"><b class="c">1</b>
+      <div style="font-size:44px;font-weight:900;letter-spacing:.1em">おしまい</div>
+      <div style="font-size:16px;opacity:.85">また よんでね 🌙</div>
+      <button class="btn pos" style="min-height:64px;min-width:220px;font-size:18px;background:#fff">↺ もういちど<b class="c">2</b></button>
+      <button class="btn pos" style="min-height:64px;min-width:220px;font-size:18px;background:rgba(255,255,255,.18);color:#fff;border:2px solid rgba(255,255,255,.5)">おわる<b class="c">3</b></button>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>プレイヤー — おしまい</h3>
+  <p class="lead">最終ページの後に出るやさしいオーバーレイ。</p>
+  <ol>
+    <li><b class="c">1</b><div>最終ページ → 「おしまい」オーバーレイ。派手な演出はせず、点滅（3Hz 超）は禁止。<small class="src">issue 21-1 / DESIGN §8.7</small></div></li>
+    <li><b class="c">2</b><div>「もういちど」で 1 ページ目から再生。ボタンは 64px 以上。<small class="src">issue 21-1 / DESIGN §8.7</small></div></li>
+    <li><b class="c">3</b><div>「おわる」でプレイヤーを抜ける（ここは長押し不要。長押しは再生中の誤操作防止のため）。<small class="src">issue 21-1,3</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 15. Settings -->
+<article class="screen" data-group="設定" data-title="設定" data-route="/settings">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">設定</span></div>
+  <div class="body" style="gap:16px">
+    <div class="sec pos"><b class="c">1</b><h5>言語 / Language</h5><div class="seg" style="align-self:flex-start"><span class="on">日本語</span><span>English</span></div></div>
+
+    <div class="sec pos"><b class="c">2</b><h5>アプリとして使う</h5>
+      <div class="card" style="display:flex;gap:12px;align-items:center"><span style="font-size:28px">📲</span><div class="grow"><b>ホーム画面に追加</b><div class="mute tiny">iOS: 共有 → 「ホーム画面に追加」</div></div><button class="btn" style="min-height:40px;font-size:14px">手順</button></div>
+    </div>
+
+    <div class="sec pos"><b class="c">3</b><h5>データの保存</h5>
+      <div class="card list" style="padding:4px 14px">
+        <div><span class="grow">ずっと保存する（persist）</span><span class="status warn">未設定</span><button class="btn" style="min-height:40px;font-size:14px">有効にする</button></div>
+        <div><span class="grow">使用量</span><span class="val">312 MB / 2.1 GB</span></div>
+        <div style="padding:8px 0"><div class="meter grow"><i style="width:15%"></i></div></div>
+      </div>
+      <div class="warnbar tiny">⚠ この端末では、しばらく使わないとブラウザがデータを消すことがあります。バックアップを取っておくと安心です。</div>
+    </div>
+
+    <div class="sec pos"><b class="c">4</b><h5>バックアップ</h5>
+      <div class="card list" style="padding:4px 14px">
+        <div><span class="grow">書き出す（.inkstory）</span><button class="btn sec" style="min-height:40px;font-size:14px">書き出す</button></div>
+        <div><span class="grow">読み込む</span><button class="btn" style="min-height:40px;font-size:14px">ファイルを選ぶ</button></div>
+      </div>
+    </div>
+
+    <div class="sec pos"><b class="c">5</b><h5>サンプル</h5>
+      <div class="card list" style="padding:4px 14px"><div><span class="grow">サンプルをもどす</span><button class="btn" style="min-height:40px;font-size:14px">もどす</button></div></div>
+    </div>
+
+    <div class="sec pos"><b class="c">6</b><h5>動作の設定</h5>
+      <div class="card list" style="padding:4px 14px">
+        <div><span class="grow">動きをひかえめにする</span><span class="sw"><i></i></span></div>
+      </div>
+    </div>
+
+    <div class="sec pos"><b class="c">7</b><h5>診断</h5>
+      <div class="card list tiny" style="padding:4px 14px">
+        <div><span class="grow">姿勢モデル</span><span class="status ok">キャッシュ済み 28 MB</span></div>
+        <div><span class="grow">推論エンジン</span><span class="val">wasm（1 スレッド）</span></div>
+        <div><span class="grow">crossOriginIsolated</span><span class="val">false（変種: none）</span></div>
+        <div><span class="grow">WebGPU</span><span class="val">利用不可</span></div>
+      </div>
+    </div>
+
+    <div class="row between mute tiny pos"><b class="c">8</b><span>inkstory v1.0.0</span><a href="#" style="color:var(--blue)">このアプリについて ›</a></div>
+  </div>
+</div>
+<div class="note">
+  <h3>設定</h3>
+  <p class="lead">親向け画面。言語・保存の持続性・バックアップ・診断をここに集約。</p>
+  <ol>
+    <li><b class="c">1</b><div>言語切替は即時反映・永続化。ja 既定、en 完備。<span class="src">&lt;html lang&gt;</span> も切り替える。<small class="src">issue 03-8 / 26-7</small></div></li>
+    <li><b class="c">2</b><div>インストール案内カード（OS ごとの手順。Android/デスクトップは beforeinstallprompt があれば直接）。<small class="src">issue 23-5</small></div></li>
+    <li><b class="c">3</b><div>持続性パネル：persist() の状態 + 要求ボタン、estimate() の使用量メーター、WebKit で未永続なら退避警告バナー（書き出しへの導線）。<small class="src">DESIGN §9.2 / issue 23-6</small></div></li>
+    <li><b class="c">4</b><div>書き出し = キャラ/えほんを選んで <span class="src">inkstory-YYYYMMDD.inkstory</span>（サンプルは既定で除外）。読み込み = 次画面の確認ステップへ。<small class="src">DESIGN §7.3 / issue 22-1, 25-5</small></div></li>
+    <li><b class="c">5</b><div>「サンプルをもどす」= 現在の言語でサンプルを再投入。<small class="src">issue 25-3</small></div></li>
+    <li><b class="c">6</b><div>reduced-motion の手動オーバーライド。<small class="src">DESIGN §7.1 Settings / issue 17-6</small></div></li>
+    <li><b class="c">7</b><div>診断：モデルのキャッシュ/ハッシュ検証状態、選ばれた ORT 実行プロバイダ、crossOriginIsolated と COI 変種、WebGPU。ハッシュ不一致は「利用不可」として表示。<small class="src">DESIGN §9.3 / issue 24-3,4</small></div></li>
+    <li><b class="c">8</b><div>package.json 由来のバージョン表示、about への導線。<small class="src">issue 03-8, 28-7</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 16. Import preview -->
+<article class="screen" data-group="設定" data-title="読み込みの確認" data-route="/settings">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">読み込む</span></div>
+  <div class="body" style="gap:14px">
+    <div class="card soft tiny">ファイル: <b>inkstory-20260915.inkstory</b>（48 MB）</div>
+    <div class="sec pos"><b class="c">1</b><h5>追加されるもの</h5>
+      <div class="card list" style="padding:4px 14px">
+        <div><div class="thumb" style="width:44px;border-radius:10px"><svg><use href="#kid"/></svg></div><span class="grow">ゆうた</span><span class="val">キャラ</span></div>
+        <div><div class="thumb" style="width:44px;border-radius:10px"><svg><use href="#cat"/></svg></div><span class="grow">ねこ</span><span class="val">キャラ</span></div>
+        <div><div class="canvas bg-meadow" style="width:44px;height:44px;border-radius:10px"></div><span class="grow">ゆうたの ぼうけん</span><span class="val">えほん · 4 ページ</span></div>
+      </div>
+      <p class="mute tiny" style="margin:0">2 キャラ、1 えほん。今あるデータは上書きされません（すべて新しいコピーとして追加）。</p>
+    </div>
+    <div class="sec pos"><b class="c">2</b><h5>読み込めなかったもの</h5>
+      <div class="card" style="border-color:#F3C9C2;background:#FFF3F1;display:flex;flex-direction:column;gap:6px" class="tiny">
+        <div class="tiny"><span class="src">books/…/audio/3f9a….bin</span><br><span class="mute">音声が 20 MB を超えています</span></div>
+        <div class="tiny"><span class="src">characters/…/character.json</span><br><span class="mute">形式が正しくありません（rig.joints）</span></div>
+      </div>
+      <p class="mute tiny" style="margin:0">エラーのあるキャラ/えほんは丸ごとスキップされます。</p>
+    </div>
+  </div>
+  <div class="footer pos"><b class="c">3</b><button class="btn line">やめる</button><button class="btn pri">追加する</button></div>
+</div>
+<div class="note">
+  <h3>読み込みの確認（.inkstory インポート）</h3>
+  <p class="lead">見知らぬ人から渡されうる「敵対的入力」の境界。確定前に何が追加されるかを必ず見せる。</p>
+  <ol>
+    <li><b class="c">1</b><div>検証済みメタデータから「追加: N キャラ, M えほん（タイトル）」を一覧表示してから確定。ID は常に新規発行し既存データを上書きしない。<small class="src">DESIGN §7.3, §10.5 / issue 22-2g,3</small></div></li>
+    <li><b class="c">2</b><div>違反はエントリ単位（パス + 理由）で表示。キャラ/えほん単位で all-or-nothing。formatVersion が新しすぎる場合は「inkstory を更新してください」で拒否。<small class="src">DESIGN §7.3 / issue 22-2d,h</small></div></li>
+    <li><b class="c">3</b><div>確定は単一トランザクション。失敗時は何も書き込まない。<small class="src">issue 22-2h</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 17. About -->
+<article class="screen" data-group="設定" data-title="このアプリについて" data-route="/about">
+<div class="frame phone">
+  <div class="bar"><button class="ib ghost" aria-label="もどる">‹</button><span class="title">このアプリについて</span></div>
+  <div class="body" style="gap:16px">
+    <div class="row" style="gap:12px"><div style="width:56px;height:56px;border-radius:16px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px">✒</div><div><b style="font-size:20px">inkstory</b><div class="mute tiny">v1.0.0 · MIT License</div></div></div>
+    <div class="sec pos"><b class="c">1</b><h5>プライバシー</h5>
+      <div class="card" style="display:flex;flex-direction:column;gap:8px">
+        <b>すべてこの端末の中だけで動きます。</b>
+        <div class="tiny">アカウント・送信・解析・クラウド AI はありません。ネットワークに出るのは、このアプリ自身のファイル（同一オリジン）の取得だけです。</div>
+        <div class="tiny"><b>端末に保存されるもの</b><br>絵（メタデータ除去済み PNG）、キャラのリグ、えほんの文と設定、録音した声、言語などの設定</div>
+        <div class="tiny"><b>書き出しファイルに入るもの</b><br>選んだキャラとえほん（画像・リグ・文・声）。位置情報などは含まれません</div>
+        <div class="tiny"><b>確かめ方</b><br>ソースコードの privacy.md と <span class="src">pnpm test:privacy</span>（外部通信ゼロを検証）</div>
+      </div>
+    </div>
+    <div class="sec pos"><b class="c">2</b><h5>クレジット</h5>
+      <div class="card list tiny" style="padding:4px 14px">
+        <div><span class="grow">Animated Drawings（手法・セグメンテーション）</span><span class="val">MIT</span></div>
+        <div><span class="grow">モーションデータ（CMU / Rokoko）</span><span class="val">CREDITS.md</span></div>
+        <div><span class="grow">背景イラスト・サンプルの絵</span><span class="val">プロジェクト作成</span></div>
+        <div><span class="grow">オープンソースライセンス一覧</span><span class="val">›</span></div>
+      </div>
+    </div>
+    <div class="row wrap pos"><b class="c">3</b><a class="btn line" href="#">ソースコード ↗</a><a class="btn line" href="#">使い方ガイド ↗</a><a class="btn line" href="#">問題を報告 ↗</a></div>
+  </div>
+</div>
+<div class="note">
+  <h3>このアプリについて</h3>
+  <p class="lead">プライバシー宣言とライセンス。外部リンクを持つ唯一の画面。</p>
+  <ol>
+    <li><b class="c">1</b><div>privacy.md を画面内に描画：何をどこに保存するか（IndexedDB の項目）、書き出しファイルの中身、テレメトリ無しの誓約、検証方法。検証可能な主張だけを書く。<small class="src">issue 28-3 / ADR-005</small></div></li>
+    <li><b class="c">2</b><div>上流クレジット（AnimatedDrawings MIT、モーションの CREDITS.md）とライセンス一覧。<small class="src">issue 28-1</small></div></li>
+    <li><b class="c">3</b><div>外部リンクはこの画面だけに置き、プレイヤーなど子ども向け画面から到達できないことを検証する。<small class="src">issue 26-5</small></div></li>
+  </ol>
+</div>
+</article>
+
+<!-- 18. Global dialogs (tablet canvas) -->
+<article class="screen" data-group="共通" data-title="共通ダイアログ・トースト" data-route="（全画面共通）">
+<div class="frame tablet" style="background:var(--paper-2)">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:24px;overflow:auto">
+    <div class="col"><div class="eyebrow">更新トースト</div>
+      <div class="toast pos" style="position:static"><b class="c">1</b><span class="grow">✨ あたらしい inkstory が あるよ</span><button class="btn">あとで</button><button class="btn" style="background:var(--yellow)">更新</button></div>
+    </div>
+    <div class="col"><div class="eyebrow">容量不足</div>
+      <div class="dialog pos" style="border:1px solid var(--line)"><b class="c">2</b>
+        <h4>保存できませんでした</h4>
+        <p class="mute tiny" style="margin:0">端末の保存領域がいっぱいです。バックアップを書き出してから、使っていないキャラやえほんを消すと空きができます。</p>
+        <button class="btn sec">バックアップを書き出す</button>
+        <button class="btn">ライブラリで整理する</button>
+      </div>
+    </div>
+    <div class="col"><div class="eyebrow">破壊操作の確認</div>
+      <div class="dialog pos" style="border:1px solid var(--line)"><b class="c">3</b>
+        <h4>「ねこ」を けしますか？</h4>
+        <p class="mute tiny" style="margin:0">このキャラを つかっている 2 ページの えほんからも いなくなります。もとに もどせません。</p>
+        <div class="row"><button class="btn line grow">やめる</button><button class="btn danger grow">けす</button></div>
+      </div>
+    </div>
+    <div class="col"><div class="eyebrow">エラー画面（境界）</div>
+      <div class="dialog pos" style="border:1px solid var(--line);align-items:center;text-align:center"><b class="c">4</b>
+        <div style="font-size:40px">🫠</div>
+        <h4>うまく うごきませんでした</h4>
+        <p class="mute tiny" style="margin:0">データは消えていません。もういちど読み込んでみてください。</p>
+        <button class="btn pri" style="width:100%">読み込みなおす</button>
+        <button class="btn" style="width:100%">エラーの詳細をコピー</button>
+      </div>
+    </div>
+    <div class="col"><div class="eyebrow">モデル取得の進捗</div>
+      <div class="dialog pos" style="border:1px solid var(--line)"><b class="c">5</b>
+        <h4>じゅんびちゅう…</h4>
+        <p class="mute tiny" style="margin:0">からだの てんを じどうで みつける ぶひんを ダウンロードしています（はじめての 1 かいだけ）</p>
+        <div class="meter"><i style="width:62%"></i></div>
+        <div class="row between tiny mute"><span>17.4 / 28.0 MB</span><button class="btn" style="min-height:36px;font-size:13px">スキップして じぶんで おく</button></div>
+      </div>
+    </div>
+    <div class="col"><div class="eyebrow">保存の通知</div>
+      <div class="toast pos" style="position:static;background:var(--green)"><b class="c">6</b><span class="grow">✓ ほぞんしたよ</span></div>
+      <div class="toast" style="position:static;background:#fff;color:var(--ink);border:1px solid var(--line);margin-top:10px"><span class="grow">🎬 うごきの ファイルが よみこめなかったので「いき」に しました</span></div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <h3>共通 UI</h3>
+  <p class="lead">画面横断で現れるトースト・ダイアログ。すべてフォーカストラップ + Esc、トーストは aria-live=polite。</p>
+  <ol>
+    <li><b class="c">1</b><div>待機中 SW があるときの更新トースト。適用/あとで。ウィザードのドラフト中・未保存のコンポーザー・プレイヤー表示中は出さない（自動リロード禁止）。<small class="src">DESIGN §9.1 / issue 23-4</small></div></li>
+    <li><b class="c">2</b><div>QuotaExceededError のグローバル 1 リスナー。書き出しとライブラリでの削除を提案。セッション中 1 バーストにつき 1 回。<small class="src">DESIGN §7.2 / issue 23-7</small></div></li>
+    <li><b class="c">3</b><div>破壊操作は必ず対象名 + 件数を明記した確認ダイアログの奥。ボタンを連打する子どもへの対策。<small class="src">DESIGN §10.5 / issue 26-5</small></div></li>
+    <li><b class="c">4</b><div>グローバルエラー境界：多言語のやさしいエラー画面、「再読み込み」と「詳細をコピー」。自動送信はしない。<small class="src">issue 03-6 / ADR-005</small></div></li>
+    <li><b class="c">5</b><div>姿勢モデル（≤30MB 目標）の初回取得は進捗（バイト / 総量）を表示。モデル無しでも手動配置で進める（ウィザードはモデル可用性でブロックしない）。<small class="src">DESIGN §5.5, §9.1, §9.4 / issue 23-2 / ADR-004</small></div></li>
+    <li><b class="c">6</b><div>保存完了・クリップ欠損時のフォールバック（idle へ）などの通知トースト。<small class="src">issue 16-7</small></div></li>
+  </ol>
+</div>
+</article>
+
+</div>
+
+<script>
+(function(){
+  var screens = Array.prototype.slice.call(document.querySelectorAll('#screens .screen'));
+  var nav = document.getElementById('nav');
+  var stage = document.getElementById('stage');
+  var scaler = document.getElementById('scaler');
+  var notes = document.getElementById('notes');
+  var routeEl = document.getElementById('route');
+  var current = 0, lastGroup = null, buttons = [];
+
+  screens.forEach(function(s, i){
+    var g = s.getAttribute('data-group');
+    if (g !== lastGroup){ var h = document.createElement('h2'); h.textContent = g; nav.appendChild(h); lastGroup = g; }
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span></span><small></small>';
+    b.firstChild.textContent = s.getAttribute('data-title');
+    b.lastChild.textContent = s.getAttribute('data-route');
+    b.addEventListener('click', function(){ show(i); });
+    nav.appendChild(b); buttons.push(b);
+  });
+
+  function show(i){
+    current = i;
+    var s = screens[i];
+    scaler.innerHTML = ''; notes.innerHTML = '';
+    scaler.appendChild(s.querySelector('.frame').cloneNode(true));
+    notes.appendChild(s.querySelector('.note').cloneNode(true));
+    routeEl.textContent = s.getAttribute('data-route') + '  ·  ' + s.getAttribute('data-title');
+    buttons.forEach(function(b, j){ b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
+    try { localStorage.setItem('inkstory-mock-screen', String(i)); } catch(e){}
+    fit();
+  }
+  function fit(){
+    var f = scaler.firstChild; if (!f) return;
+    var w = f.classList.contains('tablet') ? 1024 : 390;
+    var h = f.classList.contains('tablet') ? 860 : 800;
+    var avail = stage.clientWidth - 32;
+    var k = Math.min(1, avail / (w + 24));
+    scaler.style.transform = 'scale(' + k + ')';
+    scaler.style.height = (h * k + 24) + 'px';
+    scaler.style.width = w + 'px';
+  }
+  window.addEventListener('resize', fit);
+  document.addEventListener('keydown', function(e){
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' && current < screens.length - 1) show(current + 1);
+    if (e.key === 'ArrowLeft' && current > 0) show(current - 1);
+  });
+  var start = 0;
+  try { var v = parseInt(localStorage.getItem('inkstory-mock-screen'), 10); if (v >= 0 && v < screens.length) start = v; } catch(e){}
+  show(start);
+})();
+</script>
+</body>
+</html>
